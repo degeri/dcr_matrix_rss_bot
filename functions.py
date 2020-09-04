@@ -30,7 +30,7 @@ def reddit_mod_log():
             db.execute("INSERT INTO redditmodlog VALUES (?,?,?,?)", (mid, modname,updated,action))
             db_connection.commit()
             if postnow:
-                msg = json.dumps(modname+', '+updated+', rd, '+action)[1:-1]
+                msg = json.dumps(modname+'; '+updated+'; rd; '+action)[1:-1]
                 send_matrix_msg(msg)
                 logger.info("Sending:" + msg)
     db.close()
