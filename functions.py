@@ -6,6 +6,15 @@ import os
 import sqlite3
 import json
 from log import *
+from datetime import datetime, timezone
+
+def pretty_date(ds):
+    assert ds[22] == ':'
+    # hack to make it parseable by strptime
+    parseable = ds[:22] + ds[23:]
+    dt = datetime.strptime(parseable, "%Y-%m-%dT%H:%M:%S%z")
+    ds2 = dt.astimezone(timezone.utc).replace(tzinfo=None).isoformat(' ') + " UTC"
+    return ds2
 
 def reddit_mod_log():
     mod_log_url = config['redditmodlog']['url']
@@ -30,7 +39,8 @@ def reddit_mod_log():
             db.execute("INSERT INTO redditmodlog VALUES (?,?,?,?)", (mid, modname,updated,action))
             db_connection.commit()
             if postnow:
-                msg = json.dumps(modname+' '+updated+'; reddit decred; '+action)[1:-1]
+                updated_fmt = pretty_date(updated)
+                msg = json.dumps(modname+' '+updated_fmt+'; reddit decred; '+action)[1:-1]
                 send_matrix_msg(msg)
                 logger.info("Sending:" + msg)
     db.close()
