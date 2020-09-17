@@ -17,7 +17,7 @@ def pretty_date(ds):
     return ds2
 
 def clean_name(name):
-    return name.replace("u/", "")
+    return name.replace("/u/", "")
 
 def reddit_mod_log():
     mod_log_url = config['redditmodlog']['url']
