@@ -16,6 +16,9 @@ def pretty_date(ds):
     ds2 = dt.astimezone(timezone.utc).replace(tzinfo=None).isoformat(' ') + " UTC"
     return ds2
 
+def clean_name(name):
+    return name.replace("u/", "")
+
 def reddit_mod_log():
     mod_log_url = config['redditmodlog']['url']
     mod_log_db_name = config['redditmodlog']['dbname']+".sqlite"
@@ -39,8 +42,9 @@ def reddit_mod_log():
             db.execute("INSERT INTO redditmodlog VALUES (?,?,?,?)", (mid, modname,updated,action))
             db_connection.commit()
             if postnow:
+                modnameclean = clean_name(modname)
                 updated_fmt = pretty_date(updated)
-                msg = json.dumps(modname+' '+updated_fmt+'; reddit decred; '+action)[1:-1]
+                msg = json.dumps(modnameclean+' '+updated_fmt+'; reddit decred; '+action)[1:-1]
                 send_matrix_msg(msg)
                 logger.info("Sending:" + msg)
     db.close()
