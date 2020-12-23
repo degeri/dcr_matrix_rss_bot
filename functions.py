@@ -36,6 +36,29 @@ def mod_action_from_rss(entry):
     return ModAction(mid, modname, modname_pretty, date, date_pretty, action)
 
 
+def db_initialized(conn):
+    cur = conn.cursor()
+    cur.execute("SELECT name FROM sqlite_master WHERE type='table' AND name='redditmodlog'")
+    initialized = bool(cur.fetchone())
+    cur.close()
+    return initialized
+
+
+def insert_mod_action(cursor, ma):
+    cursor.execute("INSERT INTO redditmodlog VALUES (?,?,?,?)", (ma.id, ma.modname, ma.date, ma.action))
+
+
+def init_db(conn, mod_actions):
+    cur = conn.cursor()
+    cur.execute('CREATE TABLE "redditmodlog" ( `id` TEXT, `modname` TEXT, `updated` TEXT, `action` TEXT, PRIMARY KEY(`id`) )')
+    conn.commit()
+    logger.info("initialized database redditmodlog")
+    for ma in mod_actions:
+        insert_mod_action(cur, ma)
+    conn.commit()
+    cur.close()
+
+
 def reddit_mod_log():
     mod_log_db_name = config["redditmodlog"]["dbname"] + ".sqlite"
 
@@ -47,29 +70,26 @@ def reddit_mod_log():
     else:
         raise Exception("unexpected mode: " + mode)
 
-    db_connection = sqlite3.connect(mod_log_db_name)
-    db = db_connection.cursor()
+    db_conn = sqlite3.connect(mod_log_db_name)
 
-    # initialize the db if necessary
-    postnow = True
-    db.execute("SELECT name FROM sqlite_master WHERE type='table' AND name='redditmodlog'")
-    if not db.fetchone():
-        postnow = False
-        db.execute('CREATE TABLE "redditmodlog" ( `id` TEXT, `modname` TEXT, `updated` TEXT, `action` TEXT, PRIMARY KEY(`id`) )')
-        db_connection.commit()
-        logger.info("initialized database redditmodlog")
+    if not db_initialized(db_conn):
+        init_db(db_conn, mod_actions)
+        db_conn.close()
+        return
+
+    db_cur = db_conn.cursor()
 
     for ma in mod_actions:
-        db.execute("SELECT * from redditmodlog WHERE id=?", (ma.id,))
-        if not db.fetchall():
-            db.execute("INSERT INTO redditmodlog VALUES (?,?,?,?)", (ma.id, ma.modname, ma.date, ma.action))
-            db_connection.commit()
-            if postnow:
-                msg = json.dumps(ma.modname_pretty + " " + ma.date_pretty + "; reddit decred; " + ma.action)[1:-1]
-                send_matrix_msg(msg)
-                logger.info("Sending:" + msg)
+        db_cur.execute("SELECT * from redditmodlog WHERE id=?", (ma.id,))
+        # mod action not found in the db means it is new
+        if not db_cur.fetchall():
+            insert_mod_action(db_cur, ma)
+            db_conn.commit()
+            msg = json.dumps(ma.modname_pretty + " " + ma.date_pretty + "; reddit decred; " + ma.action)[1:-1]
+            send_matrix_msg(msg)
+            logger.info("Sending:" + msg)
 
-    db_connection.close()
+    db_conn.close()
 
 
 def send_matrix_msg(msg):
