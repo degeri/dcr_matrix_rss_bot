@@ -6,7 +6,11 @@ import os
 import sqlite3
 import json
 from log import *
+from collections import namedtuple
 from datetime import datetime, timezone
+
+ModAction = namedtuple("ModAction", [
+    "id", "modname", "modname_pretty", "date", "date_pretty", "action"])
 
 def pretty_date(ds):
     assert ds[22] == ":"
@@ -19,8 +23,16 @@ def pretty_date(ds):
 def clean_name(name):
     return name.replace("/u/", "")
 
+def mod_action_from_rss(entry):
+    mid = entry["id"]
+    modname = entry["authors"][0]["name"]
+    modname_pretty = clean_name(modname)
+    date = entry["updated"]
+    date_pretty = pretty_date(date)
+    action = entry["title_detail"]["value"]
+    return ModAction(mid, modname, modname_pretty, date, date_pretty, action)
+
 def reddit_mod_log():
-    mod_log_url = config["redditmodlog"]["url"]
     mod_log_db_name = config["redditmodlog"]["dbname"] + ".sqlite"
     postnow = True
     if not os.path.isfile(mod_log_db_name):
@@ -29,22 +41,24 @@ def reddit_mod_log():
         db = db_connection.cursor()
         db.execute('CREATE TABLE "redditmodlog" ( `id` TEXT, `modname` TEXT, `updated` TEXT, `action` TEXT, PRIMARY KEY(`id`) )')
         db_connection.close()
-    feedobject = feedparser.parse(mod_log_url)
+
+    mode = config["redditmodlog"]["mode"]
+    if mode == "rss":
+        mod_log_url = config["redditmodlog"]["rss_url"]
+        feedobject = feedparser.parse(mod_log_url)
+        mod_actions = map(mod_action_from_rss, feedobject.entries)
+    else:
+        raise Exception("unexpected mode: " + mode)
+
     db_connection = sqlite3.connect(mod_log_db_name)
     db = db_connection.cursor()
-    for entry in feedobject.entries:
-        mid = entry["id"]
-        modname = entry["authors"][0]["name"]
-        updated = entry["updated"]
-        action = entry["title_detail"]["value"]
-        db.execute("SELECT * from redditmodlog WHERE id=?", (mid,))
+    for ma in mod_actions:
+        db.execute("SELECT * from redditmodlog WHERE id=?", (ma.id,))
         if not db.fetchall():
-            db.execute("INSERT INTO redditmodlog VALUES (?,?,?,?)", (mid, modname,updated,action))
+            db.execute("INSERT INTO redditmodlog VALUES (?,?,?,?)", (ma.id, ma.modname, ma.date, ma.action))
             db_connection.commit()
             if postnow:
-                modnameclean = clean_name(modname)
-                updated_fmt = pretty_date(updated)
-                msg = json.dumps(modnameclean + " " + updated_fmt + "; reddit decred; " + action)[1:-1]
+                msg = json.dumps(ma.modname_pretty + " " + ma.date_pretty + "; reddit decred; " + ma.action)[1:-1]
                 send_matrix_msg(msg)
                 logger.info("Sending:" + msg)
     db_connection.close()

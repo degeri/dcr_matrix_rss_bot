@@ -41,6 +41,8 @@ server_url : Matrix Server URL eg: https://matrix.decred.org/
 redditmodlog
 
 ```
-url : The rss feed URL
+rss_url : The rss feed URL
+json_url : The JSON feed URL
+mode : "rss" or "json"
 dbname : name of local sqlite database used to store feed data.
 ```
