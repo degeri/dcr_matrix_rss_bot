@@ -2,7 +2,6 @@ from conf import *
 import requests
 import time
 import feedparser
-import os
 import sqlite3
 import json
 from log import *
@@ -48,16 +47,18 @@ def reddit_mod_log():
     else:
         raise Exception("unexpected mode: " + mode)
 
-    postnow = True
-    if not os.path.isfile(mod_log_db_name):
-        postnow = False
-        db_connection = sqlite3.connect(mod_log_db_name)
-        db = db_connection.cursor()
-        db.execute('CREATE TABLE "redditmodlog" ( `id` TEXT, `modname` TEXT, `updated` TEXT, `action` TEXT, PRIMARY KEY(`id`) )')
-        db_connection.close()
-
     db_connection = sqlite3.connect(mod_log_db_name)
     db = db_connection.cursor()
+
+    # initialize the db if necessary
+    postnow = True
+    db.execute("SELECT name FROM sqlite_master WHERE type='table' AND name='redditmodlog'")
+    if not db.fetchone():
+        postnow = False
+        db.execute('CREATE TABLE "redditmodlog" ( `id` TEXT, `modname` TEXT, `updated` TEXT, `action` TEXT, PRIMARY KEY(`id`) )')
+        db_connection.commit()
+        logger.info("initialized database redditmodlog")
+
     for ma in mod_actions:
         db.execute("SELECT * from redditmodlog WHERE id=?", (ma.id,))
         if not db.fetchall():
@@ -67,6 +68,7 @@ def reddit_mod_log():
                 msg = json.dumps(ma.modname_pretty + " " + ma.date_pretty + "; reddit decred; " + ma.action)[1:-1]
                 send_matrix_msg(msg)
                 logger.info("Sending:" + msg)
+
     db_connection.close()
 
 
