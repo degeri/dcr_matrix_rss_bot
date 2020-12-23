@@ -9,8 +9,10 @@ from log import *
 from collections import namedtuple
 from datetime import datetime, timezone
 
+
 ModAction = namedtuple("ModAction", [
     "id", "modname", "modname_pretty", "date", "date_pretty", "action"])
+
 
 def pretty_date(ds):
     assert ds[22] == ":"
@@ -20,8 +22,10 @@ def pretty_date(ds):
     ds2 = dt.astimezone(timezone.utc).replace(tzinfo=None).isoformat(" ") + " UTC"
     return ds2
 
+
 def clean_name(name):
     return name.replace("/u/", "")
+
 
 def mod_action_from_rss(entry):
     mid = entry["id"]
@@ -31,6 +35,7 @@ def mod_action_from_rss(entry):
     date_pretty = pretty_date(date)
     action = entry["title_detail"]["value"]
     return ModAction(mid, modname, modname_pretty, date, date_pretty, action)
+
 
 def reddit_mod_log():
     mod_log_db_name = config["redditmodlog"]["dbname"] + ".sqlite"
@@ -62,8 +67,6 @@ def reddit_mod_log():
                 send_matrix_msg(msg)
                 logger.info("Sending:" + msg)
     db_connection.close()
-
-
 
 
 def send_matrix_msg(msg):
