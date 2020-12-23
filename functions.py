@@ -28,7 +28,7 @@ def reddit_mod_log():
         db_connection = sqlite3.connect(mod_log_db_name)
         db = db_connection.cursor()
         db.execute('CREATE TABLE "redditmodlog" ( `id` TEXT, `modname` TEXT, `updated` TEXT, `action` TEXT, PRIMARY KEY(`id`) )')
-        db.close()
+        db_connection.close()
     feedobject = feedparser.parse(mod_log_url)
     db_connection = sqlite3.connect(mod_log_db_name)
     db = db_connection.cursor()
@@ -47,7 +47,7 @@ def reddit_mod_log():
                 msg = json.dumps(modnameclean + " " + updated_fmt + "; reddit decred; " + action)[1:-1]
                 send_matrix_msg(msg)
                 logger.info("Sending:" + msg)
-    db.close()
+    db_connection.close()
 
 
 
