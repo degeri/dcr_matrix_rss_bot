@@ -39,13 +39,6 @@ def mod_action_from_rss(entry):
 
 def reddit_mod_log():
     mod_log_db_name = config["redditmodlog"]["dbname"] + ".sqlite"
-    postnow = True
-    if not os.path.isfile(mod_log_db_name):
-        postnow = False
-        db_connection = sqlite3.connect(mod_log_db_name)
-        db = db_connection.cursor()
-        db.execute('CREATE TABLE "redditmodlog" ( `id` TEXT, `modname` TEXT, `updated` TEXT, `action` TEXT, PRIMARY KEY(`id`) )')
-        db_connection.close()
 
     mode = config["redditmodlog"]["mode"]
     if mode == "rss":
@@ -54,6 +47,14 @@ def reddit_mod_log():
         mod_actions = map(mod_action_from_rss, feedobject.entries)
     else:
         raise Exception("unexpected mode: " + mode)
+
+    postnow = True
+    if not os.path.isfile(mod_log_db_name):
+        postnow = False
+        db_connection = sqlite3.connect(mod_log_db_name)
+        db = db_connection.cursor()
+        db.execute('CREATE TABLE "redditmodlog" ( `id` TEXT, `modname` TEXT, `updated` TEXT, `action` TEXT, PRIMARY KEY(`id`) )')
+        db_connection.close()
 
     db_connection = sqlite3.connect(mod_log_db_name)
     db = db_connection.cursor()
