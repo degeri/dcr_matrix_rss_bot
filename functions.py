@@ -32,6 +32,29 @@ def mod_action_from_atom(entry):
     return ModAction(mid, modname, date, action)
 
 
+def mod_action_from_json(obj):
+    mid = obj["id"]
+    modname = obj["mod"]
+    created_unix = obj["created_utc"]
+    date = datetime.utcfromtimestamp(created_unix)
+    action = obj["action"]
+    # todo: use the extra stuff json offers
+    return ModAction(mid, modname, date, action)
+
+
+def mod_actions_from_json(feed):
+    assert feed["kind"] == "Listing"
+    children = feed["data"]["children"]
+    mod_actions = []
+    for c in children:
+        if not c["kind"] == "modaction":
+            logger.warning("unexpected kind: " + c["kind"])
+            continue
+        entry = c["data"]
+        mod_actions.append(mod_action_from_json(entry))
+    return mod_actions
+
+
 def db_initialized(conn):
     cur = conn.cursor()
     cur.execute("SELECT name FROM sqlite_master WHERE type='table' AND name='redditmodlog'")
@@ -59,8 +82,19 @@ def reddit_mod_log():
     mod_log_db_name = config["redditmodlog"]["dbname"] + ".sqlite"
 
     mode = config["redditmodlog"]["mode"]
-    if mode == "atom":
+    if mode == "json":
+        mod_log_url = config["redditmodlog"]["json_url"]
+        resp = requests.get(mod_log_url)
+        if resp.status_code == 200:
+            jresp = json.loads(resp.text)
+        else:
+            # todo: handle 429 Too Many Requests
+            logger.warning("response status code: " + str(resp.status_code))
+            return
+        mod_actions = mod_actions_from_json(jresp)
+    elif mode == "atom":
         mod_log_url = config["redditmodlog"]["atom_url"]
+        # todo: encapsulate all Atom handling in a func
         feedobject = feedparser.parse(mod_log_url)
         mod_actions = map(mod_action_from_atom, feedobject.entries)
     else:
