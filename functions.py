@@ -10,7 +10,7 @@ from datetime import datetime, timezone
 
 
 ModAction = namedtuple("ModAction", [
-    "id", "modname", "modname_pretty", "date", "date_pretty", "action"])
+    "id", "modname", "date", "date_pretty", "action"])
 
 
 def pretty_date(ds):
@@ -22,18 +22,17 @@ def pretty_date(ds):
     return ds2
 
 
-def clean_name(name):
+def minimal_username(name):
     return name.replace("/u/", "")
 
 
 def mod_action_from_atom(entry):
     mid = entry["id"]
-    modname = entry["authors"][0]["name"]
-    modname_pretty = clean_name(modname)
+    modname = minimal_username(entry["authors"][0]["name"])
     date = entry["updated"]
     date_pretty = pretty_date(date)
     action = entry["title_detail"]["value"]
-    return ModAction(mid, modname, modname_pretty, date, date_pretty, action)
+    return ModAction(mid, modname, date, date_pretty, action)
 
 
 def db_initialized(conn):
@@ -85,7 +84,7 @@ def reddit_mod_log():
         if not db_cur.fetchall():
             insert_mod_action(db_cur, ma)
             db_conn.commit()
-            msg = json.dumps(ma.modname_pretty + " " + ma.date_pretty + "; reddit decred; " + ma.action)[1:-1]
+            msg = json.dumps(ma.modname + " " + ma.date_pretty + "; reddit decred; " + ma.action)[1:-1]
             send_matrix_msg(msg)
             logger.info("Sending:" + msg)
 
