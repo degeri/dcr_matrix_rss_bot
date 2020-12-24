@@ -4,6 +4,8 @@ A simple bot to post Atom content to a matrix room.
 
 ## Installation 
 
+Copy `config.ini.sample` into `config.ini` and edit the latter as needed. `config.ini` is ignored by Git to prevent from accidental leaking of secrets to the repository.
+
 Edit the ini file and simply run
 
 ```
