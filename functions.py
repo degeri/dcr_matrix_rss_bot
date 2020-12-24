@@ -14,11 +14,6 @@ ModAction = namedtuple("ModAction", [
     "id", "modname", "date", "action"])
 
 
-def modlog_date(dt):
-    """Format datetime according to modlog 0.11 spec."""
-    return dt.isoformat(" ") + " UTC"
-
-
 def minimal_username(name):
     return name.replace("/u/", "")
 
@@ -59,6 +54,17 @@ def mod_actions_from_json(str_):
         entry = c["data"]
         mod_actions.append(mod_action_from_json(entry))
     return mod_actions
+
+
+def modlog_date(dt):
+    """Format datetime according to modlog 0.11 spec."""
+    return dt.isoformat(" ") + " UTC"
+
+
+def format_mod_action(ma):
+    return "{modname} {timestamp}; {platform} {place}; {action}".format(
+        modname=ma.modname, timestamp=modlog_date(ma.date),
+        platform="reddit", place="decred", action=ma.action)
 
 
 def db_initialized(conn):
@@ -127,7 +133,7 @@ def reddit_mod_log():
         if not db_cur.fetchall():
             insert_mod_action(db_cur, ma)
             db_conn.commit()
-            msg = json.dumps(ma.modname + " " + modlog_date(ma.date) + "; reddit decred; " + ma.action)[1:-1]
+            msg = json.dumps(format_mod_action(ma))[1:-1]
             send_matrix_msg(msg)
             logger.info("Sending:" + msg)
 
