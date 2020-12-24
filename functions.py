@@ -11,7 +11,7 @@ from time import mktime
 
 
 ModAction = namedtuple("ModAction", [
-    "id", "modname", "date", "action"])
+    "id", "modname", "date", "platform", "place", "action"])
 
 
 def minimal_username(name):
@@ -23,8 +23,10 @@ def mod_action_from_atom(entry):
     modname = minimal_username(entry["authors"][0]["name"])
     stime = entry["updated_parsed"] # feedparser promises to return UTC
     date = datetime.utcfromtimestamp(mktime(stime))
+    platform = "reddit"
+    place = entry.tags[0]["term"]
     action = entry["title_detail"]["value"]
-    return ModAction(mid, modname, date, action)
+    return ModAction(mid, modname, date, platform, place, action)
 
 
 def mod_actions_from_atom(str_):
@@ -37,9 +39,11 @@ def mod_action_from_json(obj):
     modname = obj["mod"]
     created_unix = obj["created_utc"]
     date = datetime.utcfromtimestamp(created_unix)
+    platform = "reddit"
+    place = obj["subreddit"]
     action = obj["action"]
     # todo: use the extra stuff json offers
-    return ModAction(mid, modname, date, action)
+    return ModAction(mid, modname, date, platform, place, action)
 
 
 def mod_actions_from_json(str_):
@@ -64,7 +68,7 @@ def modlog_date(dt):
 def format_mod_action(ma):
     return "{modname} {timestamp}; {platform} {place}; {action}".format(
         modname=ma.modname, timestamp=modlog_date(ma.date),
-        platform="reddit", place="decred", action=ma.action)
+        platform=ma.platform, place=ma.place, action=ma.action)
 
 
 def db_initialized(conn):
@@ -76,12 +80,12 @@ def db_initialized(conn):
 
 
 def insert_mod_action(cursor, ma):
-    cursor.execute("INSERT INTO redditmodlog VALUES (?,?,?,?)", (ma.id, ma.modname, ma.date.isoformat(" "), ma.action))
+    cursor.execute("INSERT INTO redditmodlog VALUES (?,?,?,?,?)", (ma.id, ma.modname, ma.date.isoformat(" "), ma.place, ma.action))
 
 
 def init_db(conn, mod_actions):
     cur = conn.cursor()
-    cur.execute('CREATE TABLE "redditmodlog" ( `id` TEXT, `modname` TEXT, `updated` TEXT, `action` TEXT, PRIMARY KEY(`id`) )')
+    cur.execute('CREATE TABLE "redditmodlog" ( `id` TEXT, `modname` TEXT, `updated` TEXT, `place` TEXT, `action` TEXT, PRIMARY KEY(`id`) )')
     conn.commit()
     logger.info("initialized database redditmodlog")
     for ma in mod_actions:
