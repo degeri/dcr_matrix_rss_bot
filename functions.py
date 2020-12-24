@@ -32,6 +32,11 @@ def mod_action_from_atom(entry):
     return ModAction(mid, modname, date, action)
 
 
+def mod_actions_from_atom(str_):
+    feed = feedparser.parse(str_)
+    return map(mod_action_from_atom, feed.entries)
+
+
 def mod_action_from_json(obj):
     mid = obj["id"]
     modname = obj["mod"]
@@ -42,7 +47,8 @@ def mod_action_from_json(obj):
     return ModAction(mid, modname, date, action)
 
 
-def mod_actions_from_json(feed):
+def mod_actions_from_json(str_):
+    feed = json.loads(str_)
     assert feed["kind"] == "Listing"
     children = feed["data"]["children"]
     mod_actions = []
@@ -78,27 +84,33 @@ def init_db(conn, mod_actions):
     cur.close()
 
 
+def fetch(url):
+    resp = requests.get(url)
+    if resp.status_code == 200:
+        return resp.text
+    else:
+        # todo: handle 429 Too Many Requests
+        logger.warning("response status code: " + str(resp.status_code))
+        return None
+
+
 def reddit_mod_log():
     mod_log_db_name = config["redditmodlog"]["dbname"] + ".sqlite"
 
     mode = config["redditmodlog"]["mode"]
     if mode == "json":
         mod_log_url = config["redditmodlog"]["json_url"]
-        resp = requests.get(mod_log_url)
-        if resp.status_code == 200:
-            jresp = json.loads(resp.text)
-        else:
-            # todo: handle 429 Too Many Requests
-            logger.warning("response status code: " + str(resp.status_code))
-            return
-        mod_actions = mod_actions_from_json(jresp)
+        converter = mod_actions_from_json
     elif mode == "atom":
         mod_log_url = config["redditmodlog"]["atom_url"]
-        # todo: encapsulate all Atom handling in a func
-        feedobject = feedparser.parse(mod_log_url)
-        mod_actions = map(mod_action_from_atom, feedobject.entries)
+        converter = mod_actions_from_atom
     else:
         raise Exception("unexpected mode: " + mode)
+
+    resp = fetch(mod_log_url)
+    if not resp:
+        return
+    mod_actions = converter(resp)
 
     db_conn = sqlite3.connect(mod_log_db_name)
 
