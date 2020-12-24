@@ -7,19 +7,16 @@ import json
 from log import *
 from collections import namedtuple
 from datetime import datetime, timezone
+from time import mktime
 
 
 ModAction = namedtuple("ModAction", [
-    "id", "modname", "date", "date_pretty", "action"])
+    "id", "modname", "date", "action"])
 
 
-def pretty_date(ds):
-    assert ds[22] == ":"
-    # hack to make it parseable by strptime
-    parseable = ds[:22] + ds[23:]
-    dt = datetime.strptime(parseable, "%Y-%m-%dT%H:%M:%S%z")
-    ds2 = dt.astimezone(timezone.utc).replace(tzinfo=None).isoformat(" ") + " UTC"
-    return ds2
+def modlog_date(dt):
+    """Format datetime according to modlog 0.11 spec."""
+    return dt.isoformat(" ") + " UTC"
 
 
 def minimal_username(name):
@@ -29,10 +26,10 @@ def minimal_username(name):
 def mod_action_from_atom(entry):
     mid = entry["id"]
     modname = minimal_username(entry["authors"][0]["name"])
-    date = entry["updated"]
-    date_pretty = pretty_date(date)
+    stime = entry["updated_parsed"] # feedparser promises to return UTC
+    date = datetime.utcfromtimestamp(mktime(stime))
     action = entry["title_detail"]["value"]
-    return ModAction(mid, modname, date, date_pretty, action)
+    return ModAction(mid, modname, date, action)
 
 
 def db_initialized(conn):
@@ -44,7 +41,7 @@ def db_initialized(conn):
 
 
 def insert_mod_action(cursor, ma):
-    cursor.execute("INSERT INTO redditmodlog VALUES (?,?,?,?)", (ma.id, ma.modname, ma.date, ma.action))
+    cursor.execute("INSERT INTO redditmodlog VALUES (?,?,?,?)", (ma.id, ma.modname, ma.date.isoformat(" "), ma.action))
 
 
 def init_db(conn, mod_actions):
@@ -84,7 +81,7 @@ def reddit_mod_log():
         if not db_cur.fetchall():
             insert_mod_action(db_cur, ma)
             db_conn.commit()
-            msg = json.dumps(ma.modname + " " + ma.date_pretty + "; reddit decred; " + ma.action)[1:-1]
+            msg = json.dumps(ma.modname + " " + modlog_date(ma.date) + "; reddit decred; " + ma.action)[1:-1]
             send_matrix_msg(msg)
             logger.info("Sending:" + msg)
 
