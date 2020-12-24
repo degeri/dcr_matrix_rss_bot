@@ -7,7 +7,7 @@ roomid=!xxxxxxxxxxxxxx:decred.org
 server_url=https://matrix.decred.org/
 
 [redditmodlog]
-atom_url=https://www.reddit.com/r/mod/about/log/.rss?feed=xxxxxxxxx&user=xxxxxxxx
-json_url=https://www.reddit.com/r/mod/about/log/.json?feed=xxxxxxxxx&user=xxxxxxxx
+atom_url=https://www.reddit.com/r/{YOUR_SUBREDDIT}/about/log/.rss?feed=xxxxxxxxx&user=xxxxxxxx
+json_url=https://www.reddit.com/r/{YOUR_SUBREDDIT}/about/log/.json?feed=xxxxxxxxx&user=xxxxxxxx
 mode=atom
 dbname=redditmodlog

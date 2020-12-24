@@ -48,3 +48,20 @@ json_url : The JSON feed URL
 mode : "atom" or "json"
 dbname : name of local sqlite database used to store feed data.
 ```
+
+To obtain Reddit mod log feed URLs:
+
+- open Reddit [preferences](https://www.reddit.com/prefs/)
+- check `enable private RSS feeds`
+- open [RSS feeds](https://www.reddit.com/prefs/feeds/) tab
+- copy the `RSS` (it is Atom really) or `JSON` link for `moderation log`
+- **treat the link as secret and do not share it**
+- change `r/mod` to **your subreddit** in the link
+
+The result should look like this:
+
+    https://www.reddit.com/r/MyGreatSubreddit/about/log/.rss?feed=xxxxxxxxx&user=xxxxxxxx
+
+If you _really_ want to you can use `r/mod` but mind that it will show mod activity from **all subreddits** you moderate.
+
+We may add support for multiple explicitly set subreddits if necessary.
