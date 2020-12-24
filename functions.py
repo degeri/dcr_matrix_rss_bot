@@ -26,7 +26,7 @@ def clean_name(name):
     return name.replace("/u/", "")
 
 
-def mod_action_from_rss(entry):
+def mod_action_from_atom(entry):
     mid = entry["id"]
     modname = entry["authors"][0]["name"]
     modname_pretty = clean_name(modname)
@@ -63,10 +63,10 @@ def reddit_mod_log():
     mod_log_db_name = config["redditmodlog"]["dbname"] + ".sqlite"
 
     mode = config["redditmodlog"]["mode"]
-    if mode == "rss":
-        mod_log_url = config["redditmodlog"]["rss_url"]
+    if mode == "atom":
+        mod_log_url = config["redditmodlog"]["atom_url"]
         feedobject = feedparser.parse(mod_log_url)
-        mod_actions = map(mod_action_from_rss, feedobject.entries)
+        mod_actions = map(mod_action_from_atom, feedobject.entries)
     else:
         raise Exception("unexpected mode: " + mode)
 

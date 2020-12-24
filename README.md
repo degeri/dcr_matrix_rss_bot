@@ -1,6 +1,6 @@
-# Decred Matrix RSS BOT
+# Decred Matrix Atom BOT
 
-A simple bot to post rss content to a matrix room.
+A simple bot to post Atom content to a matrix room.
 
 ## Installation 
 
@@ -41,8 +41,8 @@ server_url : Matrix Server URL eg: https://matrix.decred.org/
 redditmodlog
 
 ```
-rss_url : The rss feed URL
+atom_url : The Atom feed URL
 json_url : The JSON feed URL
-mode : "rss" or "json"
+mode : "atom" or "json"
 dbname : name of local sqlite database used to store feed data.
 ```
