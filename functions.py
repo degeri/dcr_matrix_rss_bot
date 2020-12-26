@@ -23,6 +23,25 @@ def drop_prefix(s, p):
         return s.replace(p, "", 1)
 
 
+REDDIT_ACTION_FIXES = {
+    "approved"      : "approve",
+    "banned"        : "ban",
+    "distinguished" : "distinguish",
+    "edited"        : "edit",
+    "removed"       : "remove",
+}
+
+
+def replace_prefix(s, replacements):
+    res = s
+    for pref, repl in replacements.items():
+        if s.startswith(pref):
+            res = s.replace(pref, repl, 1)
+            break
+
+    return res
+
+
 def mod_action_from_atom(entry):
     mid = entry["id"]
     modname = minimal_username(entry["authors"][0]["name"])
@@ -33,6 +52,7 @@ def mod_action_from_atom(entry):
     action = entry["title_detail"]["value"]
     action = drop_prefix(action, place + ": ")
     action = drop_prefix(action, modname + " ")
+    action = replace_prefix(action, REDDIT_ACTION_FIXES)
     return ModAction(mid, modname, date, platform, place, action)
 
 
