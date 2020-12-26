@@ -15,7 +15,7 @@ REDDIT_BASE = "https://www.reddit.com"
 
 
 ModAction = namedtuple("ModAction", [
-    "id", "modname", "date", "platform", "place", "action", "reason"])
+    "id", "modname", "date", "platform", "place", "action", "object", "reason"])
 
 
 def minimal_username(name):
@@ -37,11 +37,6 @@ def short_link(permalink):
         return permalink
 
 
-def drop_prefix(s, p):
-    if s.startswith(p):
-        return s.replace(p, "", 1)
-
-
 REDDIT_ACTION_FIXES = {
     "approved"      : "approve",
     "banned"        : "ban",
@@ -49,6 +44,23 @@ REDDIT_ACTION_FIXES = {
     "edited"        : "edit",
     "removed"       : "remove",
 }
+
+
+REDDIT_ACTION_OBJECTS = {
+    "banuser"       : ("ban", "user"),
+    "unbanuser"     : ("unban", "user"),
+    "spamlink"      : ("remove", "post"),
+    "removelink"    : ("remove", "post"),
+    "approvelink"   : ("approve", "post"),
+    "spamcomment"   : ("remove", "comment"),
+    "removecomment" : ("remove", "comment"),
+    "approvecomment": ("approve", "comment"),
+    "distinguish"   : ("distinguish", "comment"),
+}
+
+def drop_prefix(s, p):
+    if s.startswith(p):
+        return s.replace(p, "", 1)
 
 
 def replace_prefix(s, replacements):
@@ -72,7 +84,8 @@ def mod_action_from_atom(entry):
     action = drop_prefix(action, place + ": ")
     action = drop_prefix(action, modname + " ")
     action = replace_prefix(action, REDDIT_ACTION_FIXES)
-    return ModAction(mid, modname, date, platform, place, action, "")
+    # todo: try to split action into action and object
+    return ModAction(mid, modname, date, platform, place, action, "", "")
 
 
 def mod_actions_from_atom(str_):
@@ -88,12 +101,14 @@ def mod_action_from_json(obj):
     platform = "reddit"
     place = obj["subreddit"]
     action = obj["action"]
+    faction, objtype = REDDIT_ACTION_OBJECTS.get(action, (action, ""))
     title = obj["target_title"]
     ftitle = '"' + title + '"' if title else ""
     author = obj["target_author"]
-    fauthor = "by " + author if author else ""
+    addby = (objtype == "post" or objtype == "comment")
+    fauthor = "by " + author if addby else author
     permalink = obj["target_permalink"]
-    fpermalink = short_link(permalink) if permalink else ""
+    fpermalink = short_link(permalink) + " " if permalink else ""
     details = obj["details"]
     desc = obj["description"]
     fdesc = ": " + desc if desc else ""
@@ -101,8 +116,8 @@ def mod_action_from_json(obj):
         reason = obj["target_body"]
     else:
         reason = details + fdesc
-    faction = " ".join(filter(bool, [action, ftitle, fauthor, fpermalink])) + " "
-    return ModAction(mid, modname, date, platform, place, faction, reason)
+    fobject = " ".join(filter(bool, [objtype, ftitle, fauthor, fpermalink]))
+    return ModAction(mid, modname, date, platform, place, faction, fobject, reason)
 
 
 def mod_actions_from_json(str_):
@@ -125,10 +140,10 @@ def modlog_date(dt):
 
 
 def format_mod_action(ma):
-    return "{modname} {timestamp}; {platform} {place}; {action}{reason}".format(
+    return "{modname} {timestamp}; {platform} {place}; {action} {object}{reason}".format(
         modname=ma.modname, timestamp=modlog_date(ma.date),
         platform=ma.platform, place=ma.place, action=ma.action,
-        reason="; " + ma.reason if ma.reason else "")
+        object=ma.object, reason="; " + ma.reason if ma.reason else "")
 
 
 def db_initialized(conn):
