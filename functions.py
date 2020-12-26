@@ -58,6 +58,7 @@ REDDIT_ACTION_OBJECTS = {
     "distinguish"   : ("distinguish", "comment"),
 }
 
+
 def drop_prefix(s, p):
     if s.startswith(p):
         return s.replace(p, "", 1)
@@ -155,12 +156,12 @@ def db_initialized(conn):
 
 
 def insert_mod_action(cursor, ma):
-    cursor.execute("INSERT INTO redditmodlog VALUES (?,?,?,?,?)", (ma.id, ma.modname, ma.date.isoformat(" "), ma.place, ma.action))
+    cursor.execute("INSERT INTO redditmodlog VALUES (?,?,?,?,?,?,?)", (ma.id, ma.modname, ma.date.isoformat(" "), ma.place, ma.action, ma.object, ma.reason))
 
 
 def init_db(conn, mod_actions):
     cur = conn.cursor()
-    cur.execute('CREATE TABLE "redditmodlog" ( `id` TEXT, `modname` TEXT, `updated` TEXT, `place` TEXT, `action` TEXT, PRIMARY KEY(`id`) )')
+    cur.execute('CREATE TABLE "redditmodlog" ( `id` TEXT, `modname` TEXT, `updated` TEXT, `place` TEXT, `action` TEXT, `object` TEXT, `reason` TEXT, PRIMARY KEY(`id`) )')
     conn.commit()
     logger.info("initialized database redditmodlog")
     for ma in mod_actions:
