@@ -8,14 +8,33 @@ from log import *
 from collections import namedtuple
 from datetime import datetime, timezone
 from time import mktime
+from urllib.parse import urlparse
+
+
+REDDIT_BASE = "https://www.reddit.com"
 
 
 ModAction = namedtuple("ModAction", [
-    "id", "modname", "date", "platform", "place", "action"])
+    "id", "modname", "date", "platform", "place", "action", "reason"])
 
 
 def minimal_username(name):
     return name.replace("/u/", "")
+
+
+def short_link(permalink):
+    parsed = urlparse(permalink)
+    parts = parsed.path.split("/")
+    if len(parts) == 7:
+        postid = parts[4]
+        return "{}/comments/{}/".format(REDDIT_BASE, postid)
+    elif len(parts) == 8:
+        postid = parts[4]
+        commentid = parts[6]
+        return "{}/comments/{}/_/{}/".format(REDDIT_BASE, postid, commentid)
+    else:
+        logger.warning("unexpected permalink: " + permalink)
+        return permalink
 
 
 def drop_prefix(s, p):
@@ -53,7 +72,7 @@ def mod_action_from_atom(entry):
     action = drop_prefix(action, place + ": ")
     action = drop_prefix(action, modname + " ")
     action = replace_prefix(action, REDDIT_ACTION_FIXES)
-    return ModAction(mid, modname, date, platform, place, action)
+    return ModAction(mid, modname, date, platform, place, action, "")
 
 
 def mod_actions_from_atom(str_):
@@ -69,8 +88,21 @@ def mod_action_from_json(obj):
     platform = "reddit"
     place = obj["subreddit"]
     action = obj["action"]
-    # todo: use the extra stuff json offers
-    return ModAction(mid, modname, date, platform, place, action)
+    title = obj["target_title"]
+    ftitle = '"' + title + '"' if title else ""
+    author = obj["target_author"]
+    fauthor = "by " + author if author else ""
+    permalink = obj["target_permalink"]
+    fpermalink = short_link(permalink) if permalink else ""
+    details = obj["details"]
+    desc = obj["description"]
+    fdesc = ": " + desc if desc else ""
+    if action == "distinguish":
+        reason = obj["target_body"]
+    else:
+        reason = details + fdesc
+    faction = " ".join(filter(bool, [action, ftitle, fauthor, fpermalink])) + " "
+    return ModAction(mid, modname, date, platform, place, faction, reason)
 
 
 def mod_actions_from_json(str_):
@@ -93,9 +125,10 @@ def modlog_date(dt):
 
 
 def format_mod_action(ma):
-    return "{modname} {timestamp}; {platform} {place}; {action}".format(
+    return "{modname} {timestamp}; {platform} {place}; {action}{reason}".format(
         modname=ma.modname, timestamp=modlog_date(ma.date),
-        platform=ma.platform, place=ma.place, action=ma.action)
+        platform=ma.platform, place=ma.place, action=ma.action,
+        reason="; " + ma.reason if ma.reason else "")
 
 
 def db_initialized(conn):
