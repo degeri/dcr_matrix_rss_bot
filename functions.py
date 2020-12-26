@@ -116,7 +116,7 @@ def mod_action_from_json(obj):
         reason = obj["target_body"]
     else:
         reason = details + fdesc
-    fobject = " ".join(filter(bool, [objtype, ftitle, fauthor, fpermalink]))
+    fobject = " ".join(filter(bool, [objtype, fauthor, ftitle, fpermalink]))
     return ModAction(mid, modname, date, platform, place, faction, fobject, reason)
 
 
