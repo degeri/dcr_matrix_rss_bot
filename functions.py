@@ -18,6 +18,11 @@ def minimal_username(name):
     return name.replace("/u/", "")
 
 
+def drop_prefix(s, p):
+    if s.startswith(p):
+        return s.replace(p, "", 1)
+
+
 def mod_action_from_atom(entry):
     mid = entry["id"]
     modname = minimal_username(entry["authors"][0]["name"])
@@ -26,6 +31,8 @@ def mod_action_from_atom(entry):
     platform = "reddit"
     place = entry.tags[0]["term"]
     action = entry["title_detail"]["value"]
+    action = drop_prefix(action, place + ": ")
+    action = drop_prefix(action, modname + " ")
     return ModAction(mid, modname, date, platform, place, action)
 
 
