@@ -121,7 +121,9 @@ def mod_action_from_json(obj):
     title = obj.get("target_title")
     ftitle = '"' + title + '"' if title else ""
     author = obj.get("target_author")
-    addby = (objtype == "post" or objtype == "comment" or objtype == "flair for post")
+    addby = (objtype == "post"
+             or objtype == "comment"
+             or objtype == "flair for post")
     fauthor = "by " + author if (author and addby) else author
     permalink = obj.get("target_permalink")
     fpermalink = short_link(permalink) + " " if permalink else ""
@@ -136,7 +138,8 @@ def mod_action_from_json(obj):
         ftitle = '"' + fdetails + '"'
         reason = fdesc
     else:
-        reason = fdetails + ": " + fdesc if (fdetails and fdesc) else fdetails + fdesc
+        reason = (fdetails + ": " + fdesc if (fdetails and fdesc)
+                  else fdetails + fdesc)
 
     fobject = " ".join(filter(bool, [objtype, fauthor, ftitle, fpermalink]))
     return ModAction(mid, modname, date, platform, place, faction, action,
@@ -160,13 +163,14 @@ def mod_actions_from_json(str_):
             try:
                 ma = mod_action_from_json(entry)
             except KeyError as e:
-                logger.error("skipping malformed Reddit modaction: " +
-                    json.dumps(entry))
+                logger.error("skipping malformed Reddit modaction: "
+                             + json.dumps(entry))
                 continue
             mod_actions.append(ma)
         return mod_actions
     except KeyError as e:
-        logger.error("malformed Reddit modaction Listing, missing key " + str(e))
+        logger.error("malformed Reddit modaction Listing, missing key "
+                     + str(e))
         return []
 
 
@@ -180,27 +184,45 @@ def modlog_date(dt):
 
 
 def format_mod_action(ma):
-    return "{modname} {timestamp}; {platform} {place}; {action} {object}{reason}".format(
-        modname=ma.modname, timestamp=modlog_date(ma.date),
-        platform=ma.platform, place=ma.place, action=ma.action,
-        object=ma.object, reason="; " + ma.reason if ma.reason else "")
+    s = ("{modname} {timestamp}; {platform} {place};"
+         " {action} {object}{reason}").format(
+            modname=ma.modname,
+            timestamp=modlog_date(ma.date),
+            platform=ma.platform,
+            place=ma.place,
+            action=ma.action,
+            object=ma.object,
+            reason="; " + ma.reason if ma.reason else "")
+    return s
 
 
 def db_initialized(conn):
     cur = conn.cursor()
-    cur.execute("SELECT name FROM sqlite_master WHERE type='table' AND name='redditmodlog'")
+    cur.execute("SELECT name FROM sqlite_master"
+                " WHERE type='table' AND name='redditmodlog'")
     initialized = bool(cur.fetchone())
     cur.close()
     return initialized
 
 
 def insert_mod_action(cursor, ma):
-    cursor.execute("INSERT INTO redditmodlog VALUES (?,?,?,?,?,?,?)", (ma.id, ma.modname, ma.date.isoformat(" "), ma.place, ma.action, ma.object, ma.reason))
+    cursor.execute("INSERT INTO redditmodlog VALUES (?,?,?,?,?,?,?)",
+        (ma.id, ma.modname, ma.date.isoformat(" "), ma.place, ma.action,
+            ma.object, ma.reason))
 
 
 def init_db(conn, mod_actions):
     cur = conn.cursor()
-    cur.execute('CREATE TABLE "redditmodlog" ( `id` TEXT, `modname` TEXT, `updated` TEXT, `place` TEXT, `action` TEXT, `object` TEXT, `reason` TEXT, PRIMARY KEY(`id`) )')
+    cur.execute('CREATE TABLE "redditmodlog" ('
+                '  `id` TEXT,'
+                '  `modname` TEXT,'
+                '  `updated` TEXT,'
+                '  `place` TEXT,'
+                '  `action` TEXT,'
+                '  `object` TEXT,'
+                '  `reason` TEXT,'
+                '  PRIMARY KEY(`id`)'
+                ')')
     conn.commit()
     logger.info("initialized database redditmodlog")
     for ma in mod_actions:
@@ -267,7 +289,7 @@ def send_matrix_msg(msg):
     token = config["matrixconfig"]["accesstoken"]
     roomid = config["matrixconfig"]["roomid"]
     server_url = config["matrixconfig"]["server_url"]
-    url = "{}_matrix/client/r0/rooms/{}/send/m.room.message?access_token={}".format(
-        server_url, roomid, token)
+    url = ("{}_matrix/client/r0/rooms/{}/send/m.room.message"
+           "?access_token={}").format(server_url, roomid, token)
     data = matrix_message(msg)
     r = requests.post(url, data=data)
