@@ -1,5 +1,5 @@
 from collections import namedtuple
-from datetime import datetime, timezone
+from datetime import datetime
 import json
 import sqlite3
 from time import mktime
@@ -16,7 +16,7 @@ REDDIT_BASE = "https://www.reddit.com"
 
 
 ModAction = namedtuple("ModAction", [
-    "id", "modname", "date", "platform", "place", "action", "raw_action",
+    "id", "modname", "timestamp", "platform", "place", "action", "raw_action",
     "object", "reason"])
 
 
@@ -90,14 +90,15 @@ def mod_action_from_atom(entry):
     mid = entry["id"]
     modname = minimal_username(entry["authors"][0]["name"])
     stime = entry["updated_parsed"] # feedparser promises to return UTC
-    date = datetime.utcfromtimestamp(mktime(stime))
+    timestamp = int(mktime(stime))
     platform = "reddit"
     place = entry.tags[0]["term"]
     actobj = entry["title_detail"]["value"]
     actobj = drop_prefix(actobj, place + ": ")
     actobj = drop_prefix(actobj, modname + " ")
     act, obj = action_object_atom(actobj)
-    return ModAction(mid, modname, date, platform, place, act, "", obj, "")
+    return ModAction(mid, modname, timestamp, platform, place, act, "", obj,
+        "")
 
 
 def mod_actions_from_atom(str_):
@@ -109,8 +110,7 @@ def mod_action_from_json(obj):
     # get required keys with obj[] to trigger KeyErrors
     mid = obj["id"]
     modname = obj["mod"]
-    created_unix = obj["created_utc"]
-    date = datetime.utcfromtimestamp(created_unix)
+    timestamp = obj["created_utc"]
     platform = "reddit"
     place = obj["subreddit"]
     action = obj["action"]
@@ -142,7 +142,7 @@ def mod_action_from_json(obj):
                   else fdetails + fdesc)
 
     fobject = " ".join(filter(bool, [objtype, fauthor, ftitle, fpermalink]))
-    return ModAction(mid, modname, date, platform, place, faction, action,
+    return ModAction(mid, modname, timestamp, platform, place, faction, action,
         fobject, reason)
 
 
@@ -178,16 +178,15 @@ def filter_mod_actions(mas):
     return filter(lambda ma: not ma.raw_action == "editflair", mas)
 
 
-def modlog_date(dt):
-    """Format datetime according to modlog 0.11 spec."""
-    return dt.isoformat(" ") + " UTC"
+def format_timestamp(ts):
+    return datetime.utcfromtimestamp(ts).isoformat(" ") + " UTC"
 
 
 def format_mod_action(ma):
     s = ("{modname} {timestamp}; {platform} {place};"
          " {action} {object}{reason}").format(
             modname=ma.modname,
-            timestamp=modlog_date(ma.date),
+            timestamp=format_timestamp(ma.timestamp),
             platform=ma.platform,
             place=ma.place,
             action=ma.action,
@@ -207,20 +206,20 @@ def db_initialized(conn):
 
 def insert_mod_action(cursor, ma):
     cursor.execute('INSERT INTO redditmodlog VALUES (?,?,?,?,?,?,?)',
-        (ma.id, ma.modname, ma.date.isoformat(" "), ma.place, ma.action,
-            ma.object, ma.reason))
+        (ma.id, ma.modname, ma.timestamp, ma.place, ma.action, ma.object,
+            ma.reason))
 
 
 def init_db(conn, mod_actions):
     cur = conn.cursor()
     cur.execute('CREATE TABLE redditmodlog ('
-                '    "id"       TEXT,'
-                '    "modname"  TEXT,'
-                '    "updated"  TEXT,'
-                '    "place"    TEXT,'
-                '    "action"   TEXT,'
-                '    "object"   TEXT,'
-                '    "reason"   TEXT,'
+                '    "id"           TEXT,'
+                '    "modname"      TEXT,'
+                '    "timestamp"    INTEGER,'
+                '    "place"        TEXT,'
+                '    "action"       TEXT,'
+                '    "object"       TEXT,'
+                '    "reason"       TEXT,'
                 '    PRIMARY KEY ("id")'
                 ')')
     conn.commit()
