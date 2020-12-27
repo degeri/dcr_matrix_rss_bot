@@ -206,22 +206,22 @@ def db_initialized(conn):
 
 
 def insert_mod_action(cursor, ma):
-    cursor.execute("INSERT INTO redditmodlog VALUES (?,?,?,?,?,?,?)",
+    cursor.execute('INSERT INTO redditmodlog VALUES (?,?,?,?,?,?,?)',
         (ma.id, ma.modname, ma.date.isoformat(" "), ma.place, ma.action,
             ma.object, ma.reason))
 
 
 def init_db(conn, mod_actions):
     cur = conn.cursor()
-    cur.execute('CREATE TABLE "redditmodlog" ('
-                '  `id` TEXT,'
-                '  `modname` TEXT,'
-                '  `updated` TEXT,'
-                '  `place` TEXT,'
-                '  `action` TEXT,'
-                '  `object` TEXT,'
-                '  `reason` TEXT,'
-                '  PRIMARY KEY(`id`)'
+    cur.execute('CREATE TABLE redditmodlog ('
+                '    "id"       TEXT,'
+                '    "modname"  TEXT,'
+                '    "updated"  TEXT,'
+                '    "place"    TEXT,'
+                '    "action"   TEXT,'
+                '    "object"   TEXT,'
+                '    "reason"   TEXT,'
+                '    PRIMARY KEY ("id")'
                 ')')
     conn.commit()
     logger.info("initialized database redditmodlog")
@@ -269,7 +269,7 @@ def reddit_mod_log():
     db_cur = db_conn.cursor()
 
     for ma in mod_actions:
-        db_cur.execute("SELECT * from redditmodlog WHERE id=?", (ma.id,))
+        db_cur.execute('SELECT * FROM redditmodlog WHERE "id"=?', (ma.id,))
         # mod action not found in the db means it is new
         if not db_cur.fetchall():
             insert_mod_action(db_cur, ma)
