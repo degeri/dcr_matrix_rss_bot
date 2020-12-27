@@ -1,14 +1,15 @@
-from conf import *
-import requests
-import time
-import feedparser
-import sqlite3
-import json
-from log import *
 from collections import namedtuple
 from datetime import datetime, timezone
+import json
+import sqlite3
 from time import mktime
 from urllib.parse import urlparse
+
+import feedparser
+import requests
+
+from conf import config
+from log import logger
 
 
 REDDIT_BASE = "https://www.reddit.com"
