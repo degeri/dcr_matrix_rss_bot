@@ -43,6 +43,9 @@ REDDIT_ACTION_FIXES = {
     "distinguished" : "distinguish",
     "edited"        : "edit",
     "removed"       : "remove",
+    "stickied"      : "sticky",
+    "unstickied"    : "unsticky",
+    "spam"          : "remove",
 }
 
 
@@ -64,14 +67,16 @@ def drop_prefix(s, p):
         return s.replace(p, "", 1)
 
 
-def replace_prefix(s, replacements):
-    res = s
-    for pref, repl in replacements.items():
-        if s.startswith(pref):
-            res = s.replace(pref, repl, 1)
+def action_object_atom(ao):
+    action = ao
+    object_ = ""
+    for wrong, fixed in REDDIT_ACTION_FIXES.items():
+        if ao.startswith(wrong + " "):
+            action = fixed
+            object_ = ao.replace(wrong + " ", "", 1)
             break
 
-    return res
+    return action, object_
 
 
 def mod_action_from_atom(entry):
@@ -81,12 +86,11 @@ def mod_action_from_atom(entry):
     date = datetime.utcfromtimestamp(mktime(stime))
     platform = "reddit"
     place = entry.tags[0]["term"]
-    action = entry["title_detail"]["value"]
-    action = drop_prefix(action, place + ": ")
-    action = drop_prefix(action, modname + " ")
-    action = replace_prefix(action, REDDIT_ACTION_FIXES)
-    # todo: try to split action into action and object
-    return ModAction(mid, modname, date, platform, place, action, "", "")
+    actobj = entry["title_detail"]["value"]
+    actobj = drop_prefix(actobj, place + ": ")
+    actobj = drop_prefix(actobj, modname + " ")
+    act, obj = action_object_atom(actobj)
+    return ModAction(mid, modname, date, platform, place, act, obj, "")
 
 
 def mod_actions_from_atom(str_):
