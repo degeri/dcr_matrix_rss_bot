@@ -251,16 +251,22 @@ def reddit_mod_log():
         if not db_cur.fetchall():
             insert_mod_action(db_cur, ma)
             db_conn.commit()
-            msg = json.dumps(format_mod_action(ma))[1:-1]
+            msg = format_mod_action(ma)
+            logger.info("sending: " + msg)
             send_matrix_msg(msg)
-            logger.info("Sending:" + msg)
 
     db_conn.close()
+
+
+def matrix_message(body):
+    return json.dumps({"msgtype": "m.text", "body": body})
 
 
 def send_matrix_msg(msg):
     token = config["matrixconfig"]["accesstoken"]
     roomid = config["matrixconfig"]["roomid"]
     server_url = config["matrixconfig"]["server_url"]
-    data = '{"msgtype":"m.text", "body":"' + msg + '"}'
-    r = requests.post(server_url + "_matrix/client/r0/rooms/" + roomid + "/send/m.room.message?access_token=" + token, data = data)
+    url = "{}_matrix/client/r0/rooms/{}/send/m.room.message?access_token={}".format(
+        server_url, roomid, token)
+    data = matrix_message(msg)
+    r = requests.post(url, data=data)
