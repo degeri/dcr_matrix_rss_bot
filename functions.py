@@ -15,7 +15,8 @@ REDDIT_BASE = "https://www.reddit.com"
 
 
 ModAction = namedtuple("ModAction", [
-    "id", "modname", "date", "platform", "place", "action", "object", "reason"])
+    "id", "modname", "date", "platform", "place", "action", "raw_action",
+    "object", "reason"])
 
 
 def minimal_username(name):
@@ -95,7 +96,7 @@ def mod_action_from_atom(entry):
     actobj = drop_prefix(actobj, place + ": ")
     actobj = drop_prefix(actobj, modname + " ")
     act, obj = action_object_atom(actobj)
-    return ModAction(mid, modname, date, platform, place, act, obj, "")
+    return ModAction(mid, modname, date, platform, place, act, "", obj, "")
 
 
 def mod_actions_from_atom(str_):
@@ -137,7 +138,8 @@ def mod_action_from_json(obj):
         reason = fdetails + ": " + fdesc if (fdetails and fdesc) else fdetails + fdesc
 
     fobject = " ".join(filter(bool, [objtype, fauthor, ftitle, fpermalink]))
-    return ModAction(mid, modname, date, platform, place, faction, fobject, reason)
+    return ModAction(mid, modname, date, platform, place, faction, action,
+        fobject, reason)
 
 
 def mod_actions_from_json(str_):
@@ -165,6 +167,10 @@ def mod_actions_from_json(str_):
     except KeyError as e:
         logger.error("malformed Reddit modaction Listing, missing key " + str(e))
         return []
+
+
+def filter_mod_actions(mas):
+    return filter(lambda ma: not ma.raw_action == "editflair", mas)
 
 
 def modlog_date(dt):
@@ -228,7 +234,7 @@ def reddit_mod_log():
     resp = fetch(mod_log_url)
     if not resp:
         return
-    mod_actions = converter(resp)
+    mod_actions = filter_mod_actions(converter(resp))
 
     db_conn = sqlite3.connect(mod_log_db_name)
 
