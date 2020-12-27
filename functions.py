@@ -59,6 +59,11 @@ REDDIT_ACTION_OBJECTS = {
     "removecomment" : ("remove", "comment"),
     "approvecomment": ("approve", "comment"),
     "distinguish"   : ("distinguish", "comment"),
+    "sticky"        : ("sticky", "comment"),
+    "editflair"     : ("edit", "flair for post"),
+    "wikirevise"    : ("edit", "wiki"),
+    "createrule"    : ("create", "rule"),
+    "editrule"      : ("edit", "rule"),
 }
 
 
@@ -110,17 +115,21 @@ def mod_action_from_json(obj):
     title = obj["target_title"]
     ftitle = '"' + title + '"' if title else ""
     author = obj["target_author"]
-    addby = (objtype == "post" or objtype == "comment")
+    addby = (objtype == "post" or objtype == "comment" or objtype == "flair for post")
     fauthor = "by " + author if addby else author
     permalink = obj["target_permalink"]
     fpermalink = short_link(permalink) + " " if permalink else ""
     details = obj["details"]
+    fdetails = details if details else ""
     desc = obj["description"]
     fdesc = ": " + desc if desc else ""
     if action == "distinguish":
         reason = obj["target_body"]
+    elif action == "editrule" or action == "createrule":
+        ftitle = '"' + fdetails + '"'
+        reason = fdesc
     else:
-        reason = details + fdesc
+        reason = fdetails + fdesc
     fobject = " ".join(filter(bool, [objtype, fauthor, ftitle, fpermalink]))
     return ModAction(mid, modname, date, platform, place, faction, fobject, reason)
 
