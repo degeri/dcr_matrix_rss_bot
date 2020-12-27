@@ -104,6 +104,7 @@ def mod_actions_from_atom(str_):
 
 
 def mod_action_from_json(obj):
+    # get required keys with obj[] to trigger KeyErrors
     mid = obj["id"]
     modname = obj["mod"]
     created_unix = obj["created_utc"]
@@ -112,40 +113,58 @@ def mod_action_from_json(obj):
     place = obj["subreddit"]
     action = obj["action"]
     faction, objtype = REDDIT_ACTION_OBJECTS.get(action, (action, ""))
-    title = obj["target_title"]
+
+    # get optional fields with obj.get(), mind that it can return None
+    # if the key exists but has an explicit `None` value
+    title = obj.get("target_title")
     ftitle = '"' + title + '"' if title else ""
-    author = obj["target_author"]
+    author = obj.get("target_author")
     addby = (objtype == "post" or objtype == "comment" or objtype == "flair for post")
-    fauthor = "by " + author if addby else author
-    permalink = obj["target_permalink"]
+    fauthor = "by " + author if (author and addby) else author
+    permalink = obj.get("target_permalink")
     fpermalink = short_link(permalink) + " " if permalink else ""
-    details = obj["details"]
+    details = obj.get("details")
     fdetails = details if details else ""
-    desc = obj["description"]
-    fdesc = ": " + desc if desc else ""
+    desc = obj.get("description")
+    fdesc = desc if desc else ""
+
     if action == "distinguish":
-        reason = obj["target_body"]
+        reason = obj.get("target_body")
     elif action == "editrule" or action == "createrule":
         ftitle = '"' + fdetails + '"'
         reason = fdesc
     else:
-        reason = fdetails + fdesc
+        reason = fdetails + ": " + fdesc if (fdetails and fdesc) else fdetails + fdesc
+
     fobject = " ".join(filter(bool, [objtype, fauthor, ftitle, fpermalink]))
     return ModAction(mid, modname, date, platform, place, faction, fobject, reason)
 
 
 def mod_actions_from_json(str_):
-    feed = json.loads(str_)
-    assert feed["kind"] == "Listing"
-    children = feed["data"]["children"]
-    mod_actions = []
-    for c in children:
-        if not c["kind"] == "modaction":
-            logger.warning("unexpected kind: " + c["kind"])
-            continue
-        entry = c["data"]
-        mod_actions.append(mod_action_from_json(entry))
-    return mod_actions
+    try:
+        feed = json.loads(str_)
+    except ValueError as e:
+        logger.error("malformed JSON")
+        return []
+    try:
+        children = feed["data"]["children"]
+        mod_actions = []
+        for c in children:
+            if not c["kind"] == "modaction":
+                logger.warning("unexpected kind: " + c["kind"])
+                continue
+            entry = c["data"]
+            try:
+                ma = mod_action_from_json(entry)
+            except KeyError as e:
+                logger.error("skipping malformed Reddit modaction: " +
+                    json.dumps(entry))
+                continue
+            mod_actions.append(ma)
+        return mod_actions
+    except KeyError as e:
+        logger.error("malformed Reddit modaction Listing, missing key " + str(e))
+        return []
 
 
 def modlog_date(dt):
