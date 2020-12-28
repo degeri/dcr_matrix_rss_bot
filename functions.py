@@ -8,10 +8,11 @@ from urllib.parse import urlparse
 import feedparser
 import requests
 
-from conf import config
+import conf
 from log import logger
 
 
+CONFIG = conf.config["redditmodlog"]
 REDDIT_BASE = "https://www.reddit.com"
 
 
@@ -241,14 +242,14 @@ def fetch(url):
 
 
 def reddit_mod_log():
-    mod_log_db_name = config["redditmodlog"]["dbname"] + ".sqlite"
+    mod_log_db_name = CONFIG["dbname"] + ".sqlite"
 
-    mode = config["redditmodlog"]["mode"]
+    mode = CONFIG["mode"]
     if mode == "json":
-        mod_log_url = config["redditmodlog"]["json_url"]
+        mod_log_url = CONFIG["json_url"]
         converter = mod_actions_from_json
     elif mode == "atom":
-        mod_log_url = config["redditmodlog"]["atom_url"]
+        mod_log_url = CONFIG["atom_url"]
         converter = mod_actions_from_atom
     else:
         raise Exception("unexpected mode: " + mode)
