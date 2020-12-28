@@ -16,7 +16,7 @@ from log import logger
 CONFIG = conf.config["redditmodlog"]
 BASE_URL = "https://www.reddit.com"
 FETCH_RETRY_SECONDS = 8
-FETCH_ATTEMPTS = 5
+FETCH_RETRIES = 5
 
 
 ModAction = namedtuple("ModAction", [
@@ -241,7 +241,7 @@ def insert_mod_action(cursor, ma):
 
 def fetch(url):
     retries = 0
-    while retries <= FETCH_ATTEMPTS:
+    while retries <= FETCH_RETRIES:
         resp = requests.get(url)
         if resp.status_code == 200:
             return resp.text
@@ -250,6 +250,8 @@ def fetch(url):
                 str(resp.status_code), FETCH_RETRY_SECONDS))
             retries += 1
             time.sleep(FETCH_RETRY_SECONDS)
+    logger.warning("failed to fetch with {} retries, giving up this"
+                   " request".format(FETCH_RETRIES))
     return None
 
 
