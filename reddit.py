@@ -14,7 +14,7 @@ from log import logger
 
 
 CONFIG = conf.config["redditmodlog"]
-REDDIT_BASE = "https://www.reddit.com"
+BASE_URL = "https://www.reddit.com"
 FETCH_RETRY_SECONDS = 8
 FETCH_ATTEMPTS = 5
 
@@ -33,17 +33,17 @@ def short_link(permalink):
     parts = parsed.path.split("/")
     if len(parts) == 7:
         postid = parts[4]
-        return "{}/comments/{}/".format(REDDIT_BASE, postid)
+        return "{}/comments/{}/".format(BASE_URL, postid)
     elif len(parts) == 8:
         postid = parts[4]
         commentid = parts[6]
-        return "{}/comments/{}/_/{}/".format(REDDIT_BASE, postid, commentid)
+        return "{}/comments/{}/_/{}/".format(BASE_URL, postid, commentid)
     else:
         logger.warning("unexpected permalink: " + permalink)
         return permalink
 
 
-REDDIT_ACTION_FIXES = {
+MOD_ACTION_FIXES = {
     "approved"      : "approve",
     "banned"        : "ban",
     "distinguished" : "distinguish",
@@ -55,33 +55,15 @@ REDDIT_ACTION_FIXES = {
 }
 
 
-REDDIT_ACTION_OBJECTS = {
-    "banuser"       : ("ban", "user"),
-    "unbanuser"     : ("unban", "user"),
-    "spamlink"      : ("remove", "post"),
-    "removelink"    : ("remove", "post"),
-    "approvelink"   : ("approve", "post"),
-    "spamcomment"   : ("remove", "comment"),
-    "removecomment" : ("remove", "comment"),
-    "approvecomment": ("approve", "comment"),
-    "distinguish"   : ("distinguish", "comment"),
-    "sticky"        : ("sticky", "comment"),
-    "editflair"     : ("edit", "flair for post"),
-    "wikirevise"    : ("edit", "wiki"),
-    "createrule"    : ("create", "rule"),
-    "editrule"      : ("edit", "rule"),
-}
-
-
 def drop_prefix(s, p):
     if s.startswith(p):
         return s.replace(p, "", 1)
 
 
-def action_object_atom(ao):
+def split_action_atom(ao):
     action = ao
     object_ = ""
-    for wrong, fixed in REDDIT_ACTION_FIXES.items():
+    for wrong, fixed in MOD_ACTION_FIXES.items():
         if ao.startswith(wrong + " "):
             action = fixed
             object_ = ao.replace(wrong + " ", "", 1)
@@ -100,7 +82,7 @@ def mod_action_from_atom(entry):
     actobj = entry["title_detail"]["value"]
     actobj = drop_prefix(actobj, place + ": ")
     actobj = drop_prefix(actobj, modname + " ")
-    act, obj = action_object_atom(actobj)
+    act, obj = split_action_atom(actobj)
     return ModAction(mid, modname, timestamp, platform, place, act, "", obj,
         "")
 
@@ -108,6 +90,24 @@ def mod_action_from_atom(entry):
 def mod_actions_from_atom(str_):
     feed = feedparser.parse(str_)
     return map(mod_action_from_atom, feed.entries)
+
+
+MOD_ACTIONS_OBJECTS = {
+    "banuser"       : ("ban", "user"),
+    "unbanuser"     : ("unban", "user"),
+    "spamlink"      : ("remove", "post"),
+    "removelink"    : ("remove", "post"),
+    "approvelink"   : ("approve", "post"),
+    "spamcomment"   : ("remove", "comment"),
+    "removecomment" : ("remove", "comment"),
+    "approvecomment": ("approve", "comment"),
+    "distinguish"   : ("distinguish", "comment"),
+    "sticky"        : ("sticky", "comment"),
+    "editflair"     : ("edit", "flair for post"),
+    "wikirevise"    : ("edit", "wiki"),
+    "createrule"    : ("create", "rule"),
+    "editrule"      : ("edit", "rule"),
+}
 
 
 def mod_action_from_json(obj):
@@ -118,7 +118,7 @@ def mod_action_from_json(obj):
     platform = "reddit"
     place = obj["subreddit"]
     action = obj["action"]
-    faction, objtype = REDDIT_ACTION_OBJECTS.get(action, (action, ""))
+    faction, objtype = MOD_ACTIONS_OBJECTS.get(action, (action, ""))
 
     # get optional fields with obj.get(), mind that it can return None
     # if the key exists but has an explicit `None` value
@@ -248,25 +248,25 @@ def fetch(url):
     return None
 
 
-def reddit_mod_log():
-    mod_log_db_file = CONFIG["dbfile"]
+def new_modlog_records():
+    db_file = CONFIG["dbfile"]
 
     mode = CONFIG["mode"]
     if mode == "json":
-        mod_log_url = CONFIG["json_url"]
+        url = CONFIG["json_url"]
         converter = mod_actions_from_json
     elif mode == "atom":
-        mod_log_url = CONFIG["atom_url"]
+        url = CONFIG["atom_url"]
         converter = mod_actions_from_atom
     else:
         raise Exception("unexpected mode: " + mode)
 
-    resp = fetch(mod_log_url)
+    resp = fetch(url)
     if not resp:
         return []
     mod_actions = filter_mod_actions(converter(resp))
 
-    db_conn = sqlite3.connect(mod_log_db_file)
+    db_conn = sqlite3.connect(db_file)
 
     if not db_initialized(db_conn):
         init_db(db_conn, mod_actions)
