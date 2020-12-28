@@ -208,12 +208,6 @@ def db_initialized(conn):
     return initialized
 
 
-def insert_mod_action(cursor, ma):
-    cursor.execute('INSERT INTO redditmodlog VALUES (?,?,?,?,?,?,?)',
-        (ma.id, ma.modname, ma.timestamp, ma.place, ma.action, ma.object,
-            ma.reason))
-
-
 def init_db(conn, mod_actions):
     cur = conn.cursor()
     cur.execute('CREATE TABLE redditmodlog ('
@@ -232,6 +226,17 @@ def init_db(conn, mod_actions):
         insert_mod_action(cur, ma)
     conn.commit()
     cur.close()
+
+
+def mod_action_exists(cursor, mid):
+    cursor.execute('SELECT "id" FROM redditmodlog WHERE "id"=?', (mid,))
+    return bool(cursor.fetchone())
+
+
+def insert_mod_action(cursor, ma):
+    cursor.execute('INSERT INTO redditmodlog VALUES (?,?,?,?,?,?,?)',
+        (ma.id, ma.modname, ma.timestamp, ma.place, ma.action, ma.object,
+            ma.reason))
 
 
 def fetch(url):
@@ -277,9 +282,7 @@ def new_modlog_records():
     records = []
 
     for ma in mod_actions:
-        db_cur.execute('SELECT * FROM redditmodlog WHERE "id"=?', (ma.id,))
-        # mod action not found in the db means it is new
-        if not db_cur.fetchall():
+        if not mod_action_exists(db_cur, ma.id):
             insert_mod_action(db_cur, ma)
             db_conn.commit()
             records.append(format_mod_action(ma))
