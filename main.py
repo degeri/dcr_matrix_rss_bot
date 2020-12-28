@@ -1,3 +1,5 @@
+import time
+
 from functions import *
 from log import *
 from conf import *
