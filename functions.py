@@ -242,7 +242,7 @@ def fetch(url):
 
 
 def reddit_mod_log():
-    mod_log_db_name = CONFIG["dbname"] + ".sqlite"
+    mod_log_db_file = CONFIG["dbfile"]
 
     mode = CONFIG["mode"]
     if mode == "json":
@@ -259,7 +259,7 @@ def reddit_mod_log():
         return []
     mod_actions = filter_mod_actions(converter(resp))
 
-    db_conn = sqlite3.connect(mod_log_db_name)
+    db_conn = sqlite3.connect(mod_log_db_file)
 
     if not db_initialized(db_conn):
         init_db(db_conn, mod_actions)

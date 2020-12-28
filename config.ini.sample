@@ -10,4 +10,4 @@ server_url=https://matrix.decred.org/
 atom_url=https://www.reddit.com/r/{YOUR_SUBREDDIT}/about/log/.rss?feed=xxxxxxxxx&user=xxxxxxxx
 json_url=https://www.reddit.com/r/{YOUR_SUBREDDIT}/about/log/.json?feed=xxxxxxxxx&user=xxxxxxxx
 mode=atom
-dbname=redditmodlog
+dbfile=redditmodlog.sqlite
