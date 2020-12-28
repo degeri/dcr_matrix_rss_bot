@@ -55,6 +55,15 @@ MOD_ACTION_FIXES = {
 }
 
 
+def extract_id_atom(idstr):
+    path = urlparse(idstr).path
+    start = path.find("ModAction")
+    if start < 0: # should never be True
+        logger.warn("something is wrong with this Atom entry id" + idstr)
+        return idstr
+    return path[start:]
+
+
 def drop_prefix(s, p):
     if s.startswith(p):
         return s.replace(p, "", 1)
@@ -73,7 +82,7 @@ def split_action_atom(ao):
 
 
 def mod_action_from_atom(entry):
-    mid = entry["id"]
+    mid = extract_id_atom(entry["id"])
     modname = minimal_username(entry["authors"][0]["name"])
     stime = entry["updated_parsed"] # feedparser promises to return UTC
     timestamp = int(mktime(stime))
