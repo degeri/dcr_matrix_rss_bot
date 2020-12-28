@@ -255,7 +255,7 @@ def reddit_mod_log():
 
     resp = fetch(mod_log_url)
     if not resp:
-        return
+        return []
     mod_actions = filter_mod_actions(converter(resp))
 
     db_conn = sqlite3.connect(mod_log_db_name)
@@ -263,9 +263,10 @@ def reddit_mod_log():
     if not db_initialized(db_conn):
         init_db(db_conn, mod_actions)
         db_conn.close()
-        return
+        return []
 
     db_cur = db_conn.cursor()
+    records = []
 
     for ma in mod_actions:
         db_cur.execute('SELECT * FROM redditmodlog WHERE "id"=?', (ma.id,))
@@ -273,22 +274,7 @@ def reddit_mod_log():
         if not db_cur.fetchall():
             insert_mod_action(db_cur, ma)
             db_conn.commit()
-            msg = format_mod_action(ma)
-            logger.info("sending: " + msg)
-            send_matrix_msg(msg)
+            records.append(format_mod_action(ma))
 
     db_conn.close()
-
-
-def matrix_message(body):
-    return json.dumps({"msgtype": "m.text", "body": body})
-
-
-def send_matrix_msg(msg):
-    token = config["matrixconfig"]["accesstoken"]
-    roomid = config["matrixconfig"]["roomid"]
-    server_url = config["matrixconfig"]["server_url"]
-    url = ("{}_matrix/client/r0/rooms/{}/send/m.room.message"
-           "?access_token={}").format(server_url, roomid, token)
-    data = matrix_message(msg)
-    r = requests.post(url, data=data)
+    return records
