@@ -2,6 +2,7 @@ from collections import namedtuple
 from datetime import datetime
 import json
 import sqlite3
+import time
 from time import mktime
 from urllib.parse import urlparse
 
@@ -14,6 +15,8 @@ from log import logger
 
 CONFIG = conf.config["redditmodlog"]
 REDDIT_BASE = "https://www.reddit.com"
+FETCH_RETRY_SECONDS = 8
+FETCH_ATTEMPTS = 5
 
 
 ModAction = namedtuple("ModAction", [
@@ -232,13 +235,17 @@ def init_db(conn, mod_actions):
 
 
 def fetch(url):
-    resp = requests.get(url)
-    if resp.status_code == 200:
-        return resp.text
-    else:
-        # todo: handle 429 Too Many Requests
-        logger.warning("response status code: " + str(resp.status_code))
-        return None
+    retries = 0
+    while retries <= FETCH_ATTEMPTS:
+        resp = requests.get(url)
+        if resp.status_code == 200:
+            return resp.text
+        else:
+            logger.warning("response status {}, retrying in {} s".format(
+                str(resp.status_code), FETCH_RETRY_SECONDS))
+            retries += 1
+            time.sleep(FETCH_RETRY_SECONDS)
+    return None
 
 
 def reddit_mod_log():
