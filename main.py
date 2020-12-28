@@ -1,8 +1,8 @@
 import time
 
-from functions import *
-from log import *
-from conf import *
+from conf import config
+from functions import reddit_mod_log
+
 
 wait_time = int(config["programconfig"]["checktimemins"]) * 60
 
