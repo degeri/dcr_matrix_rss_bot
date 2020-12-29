@@ -227,6 +227,11 @@ def get_meta_value(cur, key, converter):
     return converter(row[0]) if row else None
 
 
+def set_meta_value(cur, key, val):
+    cur.execute('UPDATE redditmodlog_meta SET "value"=? WHERE "key"=?',
+                (val, key))
+
+
 def db_initialized(cur):
     modlog_table = "redditmodlog"
     modlog_table_exists = table_exists(cur, modlog_table)
@@ -243,16 +248,18 @@ def db_initialized(cur):
     return modlog_table_exists
 
 
-def get_newest_mod_action_id(cur):
-    return get_meta_value(cur, "newest_modaction_id", str)
+def get_newest_mod_action_idts(cur):
+    newest_id = get_meta_value(cur, "newest_modaction_id", str)
+    newest_ts = get_meta_value(cur, "newest_modaction_timestamp", int)
+    return newest_id, newest_ts
 
 
 def update_newest_mod_action(conn, mod_actions):
     if mod_actions:
         newest = newest_mod_action(mod_actions)
         cur = conn.cursor()
-        cur.execute('UPDATE redditmodlog_meta SET "value"=(?)'
-                    ' WHERE "key"=\'newest_modaction_id\'', (newest.id,))
+        set_meta_value(cur, "newest_modaction_id", newest.id)
+        set_meta_value(cur, "newest_modaction_timestamp", newest.timestamp)
         conn.commit()
 
 
@@ -275,6 +282,7 @@ def init_db(conn):
     cur.executemany('INSERT INTO redditmodlog_meta VALUES (?,?)', [
         ("schema_version", str(DB_SCHEMA_VERSION)),
         ("newest_modaction_id", ""),
+        ("newest_modaction_timestamp", ""),
     ])
     conn.commit()
     logger.info("initialized database redditmodlog")
@@ -335,12 +343,12 @@ def new_modlog_records():
     first_run = not db_initialized(db_cur)
     if first_run:
         init_db(db_conn)
-        newest_mid = None
+        newest_id, newest_ts = None, None
     else:
-        newest_mid = get_newest_mod_action_id(db_cur)
+        newest_id, newest_ts = get_newest_mod_action_idts(db_cur)
 
-    url2 = (replace_query_param(url, "before", newest_mid)
-            if newest_mid else url)
+    url2 = (replace_query_param(url, "before", newest_id)
+            if newest_id else url)
     resp = fetch(url2)
     if not resp:
         db_conn.close()
