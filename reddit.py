@@ -191,6 +191,10 @@ def filter_mod_actions(mas):
     return filter(lambda ma: not ma.raw_action == "editflair", mas)
 
 
+def newest_mod_action(mod_actions):
+    return max(mod_actions, key=lambda ma: ma.timestamp)
+
+
 def format_timestamp(ts):
     return datetime.utcfromtimestamp(ts).isoformat(" ") + " UTC"
 
@@ -208,16 +212,44 @@ def format_mod_action(ma):
     return s
 
 
-def db_initialized(conn):
-    cur = conn.cursor()
+DB_SCHEMA_VERSION = 2
+
+
+def table_exists(cur, table):
     cur.execute("SELECT name FROM sqlite_master"
-                " WHERE type='table' AND name='redditmodlog'")
-    initialized = bool(cur.fetchone())
-    cur.close()
-    return initialized
+                " WHERE type='table' AND name='{}'".format(table))
+    return bool(cur.fetchone())
 
 
-def init_db(conn, mod_actions):
+def db_initialized(cur):
+    modlog_table = "redditmodlog"
+    modlog_table_exists = table_exists(cur, modlog_table)
+    meta_table = "redditmodlog_meta"
+    meta_table_exists = table_exists(cur, meta_table)
+    if modlog_table_exists != meta_table_exists:
+        raise Exception("bad db state: tables {} and {} must either both exist"
+                        " or not exist".format(modlog_table, meta_table))
+    if meta_table_exists:
+        cur.execute('SELECT "value" FROM {}'
+                    ' WHERE "key"=\'schema_version\''.format(meta_table))
+        verrow = cur.fetchone()
+        ver = int(verrow[0]) if verrow else None
+        if ver != DB_SCHEMA_VERSION:
+            raise Exception("unsupported schema version, expected {} but"
+                            " got {}".format(DB_SCHEMA_VERSION, ver))
+    return modlog_table_exists
+
+
+def update_newest_mod_action(conn, mod_actions):
+    if mod_actions:
+        newest = newest_mod_action(mod_actions)
+        cur = conn.cursor()
+        cur.execute('UPDATE redditmodlog_meta SET "value"=(?)'
+                    ' WHERE "key"=\'newest_modaction_id\'', (newest.id,))
+        conn.commit()
+
+
+def init_db(conn):
     cur = conn.cursor()
     cur.execute('CREATE TABLE redditmodlog ('
                 '    "id"           TEXT,'
@@ -229,11 +261,16 @@ def init_db(conn, mod_actions):
                 '    "reason"       TEXT,'
                 '    PRIMARY KEY ("id")'
                 ')')
+    cur.execute('CREATE TABLE redditmodlog_meta('
+                '    "key"          TEXT,'
+                '    "value"        TEXT'
+                ')')
+    cur.executemany('INSERT INTO redditmodlog_meta VALUES (?,?)', [
+        ("schema_version", str(DB_SCHEMA_VERSION)),
+        ("newest_modaction_id", ""),
+    ])
     conn.commit()
     logger.info("initialized database redditmodlog")
-    for ma in mod_actions:
-        insert_mod_action(cur, ma)
-    conn.commit()
     cur.close()
 
 
@@ -280,23 +317,31 @@ def new_modlog_records():
     resp = fetch(url)
     if not resp:
         return []
-    mod_actions = filter_mod_actions(converter(resp))
+    mod_actions = list(converter(resp))
+    mod_actions_filtered = list(filter_mod_actions(mod_actions))
 
     db_conn = sqlite3.connect(db_file)
-
-    if not db_initialized(db_conn):
-        init_db(db_conn, mod_actions)
-        db_conn.close()
-        return []
-
     db_cur = db_conn.cursor()
+
+    if not db_initialized(db_cur):
+        init_db(db_conn)
+        for ma in mod_actions_filtered:
+            insert_mod_action(db_cur, ma)
+        update_newest_mod_action(db_conn, mod_actions) # commits
+        db_conn.close()
+        return [] # nothing "new" on the first run
+
     records = []
 
-    for ma in mod_actions:
+    for ma in mod_actions_filtered:
         if not mod_action_exists(db_cur, ma.id):
             insert_mod_action(db_cur, ma)
             db_conn.commit()
             records.append(format_mod_action(ma))
+
+    # mind that we use an _unfiltered_ fetch result to find the newest seen
+    # mod action, to avoid re-checking filtered-out items next time
+    update_newest_mod_action(db_conn, mod_actions) # commits
 
     db_conn.close()
     return records
