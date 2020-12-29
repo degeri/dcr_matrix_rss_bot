@@ -4,7 +4,7 @@ import json
 import sqlite3
 import time
 from time import mktime
-from urllib.parse import urlparse
+from urllib.parse import parse_qs, urlencode, urlparse, urlunparse
 
 import feedparser
 import requests
@@ -221,6 +221,12 @@ def table_exists(cur, table):
     return bool(cur.fetchone())
 
 
+def get_meta_value(cur, key, converter):
+    cur.execute('SELECT "value" FROM redditmodlog_meta WHERE "key"=?', (key,))
+    row = cur.fetchone()
+    return converter(row[0]) if row else None
+
+
 def db_initialized(cur):
     modlog_table = "redditmodlog"
     modlog_table_exists = table_exists(cur, modlog_table)
@@ -230,14 +236,15 @@ def db_initialized(cur):
         raise Exception("bad db state: tables {} and {} must either both exist"
                         " or not exist".format(modlog_table, meta_table))
     if meta_table_exists:
-        cur.execute('SELECT "value" FROM {}'
-                    ' WHERE "key"=\'schema_version\''.format(meta_table))
-        verrow = cur.fetchone()
-        ver = int(verrow[0]) if verrow else None
+        ver = get_meta_value(cur, "schema_version", int)
         if ver != DB_SCHEMA_VERSION:
-            raise Exception("unsupported schema version, expected {} but"
-                            " got {}".format(DB_SCHEMA_VERSION, ver))
+            raise Exception("unsupported schema version {},"
+                            " expected {}".format(ver, DB_SCHEMA_VERSION))
     return modlog_table_exists
+
+
+def get_newest_mod_action_id(cur):
+    return get_meta_value(cur, "newest_modaction_id", str)
 
 
 def update_newest_mod_action(conn, mod_actions):
@@ -301,6 +308,14 @@ def fetch(url):
     return None
 
 
+def replace_query_param(url, param, value):
+    urlp = urlparse(url)
+    qsp = parse_qs(urlp.query, keep_blank_values=True)
+    qsp[param] = value
+    qs = urlencode(qsp, doseq=True)
+    return urlunparse(urlp._replace(query=qs))
+
+
 def new_modlog_records():
     db_file = CONFIG["dbfile"]
 
@@ -314,17 +329,27 @@ def new_modlog_records():
     else:
         raise Exception("unexpected mode: " + mode)
 
-    resp = fetch(url)
-    if not resp:
-        return []
-    mod_actions = list(converter(resp))
-    mod_actions_filtered = list(filter_mod_actions(mod_actions))
-
     db_conn = sqlite3.connect(db_file)
     db_cur = db_conn.cursor()
 
-    if not db_initialized(db_cur):
+    first_run = not db_initialized(db_cur)
+    if first_run:
         init_db(db_conn)
+        newest_mid = None
+    else:
+        newest_mid = get_newest_mod_action_id(db_cur)
+
+    url2 = (replace_query_param(url, "before", newest_mid)
+            if newest_mid else url)
+    resp = fetch(url2)
+    if not resp:
+        db_conn.close()
+        return [] # could not fetch anything, try again later
+
+    mod_actions = list(converter(resp))
+    mod_actions_filtered = list(filter_mod_actions(mod_actions))
+
+    if first_run:
         for ma in mod_actions_filtered:
             insert_mod_action(db_cur, ma)
         update_newest_mod_action(db_conn, mod_actions) # commits
