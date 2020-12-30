@@ -256,10 +256,24 @@ def get_newest_mod_action_idts(cur):
 
 def update_newest_mod_action(conn, mod_actions):
     if mod_actions:
-        newest = newest_mod_action(mod_actions)
+        candidate = newest_mod_action(mod_actions)
         cur = conn.cursor()
-        set_meta_value(cur, "newest_modaction_id", newest.id)
-        set_meta_value(cur, "newest_modaction_timestamp", newest.timestamp)
+        newest_id, newest_ts = get_newest_mod_action_idts(cur)
+        if newest_ts and candidate.timestamp < newest_ts:
+            logger.warning("not updating newest mod action as the candidate"
+                           " with id={} and timestamp={} is OLDER than the"
+                           " current one with id={} and timestamp={}".format(
+                           candidate.id, candidate.timestamp,
+                           newest_id, newest_ts))
+            return
+        elif (newest_ts and candidate.timestamp == newest_ts
+              and candidate.id == newest_id):
+            logger.warning("not updating newest mod action with identical"
+                           " id={} and timestamp={}. Bug?".format(
+                           newest_id, newest_ts))
+            return
+        set_meta_value(cur, "newest_modaction_id", candidate.id)
+        set_meta_value(cur, "newest_modaction_timestamp", candidate.timestamp)
         conn.commit()
 
 
