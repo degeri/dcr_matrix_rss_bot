@@ -381,10 +381,37 @@ def new_modlog_records():
     records = []
 
     for ma in mod_actions_filtered:
-        if not mod_action_exists(db_cur, ma.id):
+        exists = mod_action_exists(db_cur, ma.id)
+        # use < to consider mod actions occurred same second as the newest
+        # seen one. Note that newest_ts may be empty!
+        older = ma.timestamp < newest_ts if newest_ts else False
+
+        if not exists:
+            if older:
+                logger.warning("fetched mod action is older than the newest"
+                               " seen one AND is missing from the db,"
+                               " saving: " + str(ma))
             insert_mod_action(db_cur, ma)
             db_conn.commit()
             records.append(format_mod_action(ma))
+        else: # exists
+            # ideally report a diff with db version
+            if older:
+                logger.warning("fetched mod action id exists in the db and its"
+                               " timestamp is older than the newest seen one."
+                               " Keeping db version and ignoring the fetched"
+                               " one: " + str(ma))
+            else:
+                # maybe update the row but log previous version first
+                logger.warning("fetched mod action id exists in the db BUT its"
+                               " timestamp is SAME OR NEWER than the newest"
+                               " seen one saved in the db. This is odd. You"
+                               " may have altered the db, or it is a bug, or"
+                               " Reddit has altered the timestamp. Newest seen"
+                               " id and timestamp will be updated in the meta"
+                               " table but the existing mod action will stay"
+                               " unchanged in the main table. Fetched version:"
+                               " " + str(ma))
 
     # mind that we use an _unfiltered_ fetch result to find the newest seen
     # mod action, to avoid re-checking filtered-out items next time
