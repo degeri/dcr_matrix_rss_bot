@@ -224,7 +224,7 @@ def table_exists(cur, table):
 def get_meta_value(cur, key, converter):
     cur.execute('SELECT "value" FROM redditmodlog_meta WHERE "key"=?', (key,))
     row = cur.fetchone()
-    return converter(row[0]) if row else None
+    return converter(row[0]) if (row and row[0]) else None
 
 
 def set_meta_value(cur, key, val):
