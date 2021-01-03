@@ -46,8 +46,12 @@ redditmodlog
 atom_url : The Atom feed URL
 json_url : The JSON feed URL
 mode : "atom" or "json"
-dbname : name of local sqlite database used to store feed data.
+dbfile : name of local sqlite database used to store feed data.
+json_save_raw : true to enable saving raw modlog JSON objects, only supported in json mode
+json_raw_dbfile : name of local sqlite database for raw mod log data
 ```
+
+Currently only a subset of Reddit response is used and saved in `dbfile`. When `json_save_raw` is `true`, raw JSON mod action objects (unmodified and unfiltered) are stored in a separate database file. If in the future we decide to extract and use more parts of Reddit modlog response, it will be useful to have full raw past data available. Note that Reddit allows to get the mod log only ~2 months into the past.
 
 To obtain Reddit mod log feed URLs:
 

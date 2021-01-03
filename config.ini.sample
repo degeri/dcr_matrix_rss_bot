@@ -11,3 +11,5 @@ atom_url=https://www.reddit.com/r/{YOUR_SUBREDDIT}/about/log/.rss?feed=xxxxxxxxx
 json_url=https://www.reddit.com/r/{YOUR_SUBREDDIT}/about/log/.json?feed=xxxxxxxxx&user=xxxxxxxx
 mode=atom
 dbfile=redditmodlog.sqlite
+json_save_raw=true
+json_raw_dbfile=redditmodlog_raw.sqlite

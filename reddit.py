@@ -1,4 +1,5 @@
 from collections import namedtuple
+from contextlib import closing
 from datetime import datetime
 import json
 import sqlite3
@@ -21,7 +22,7 @@ FETCH_RETRIES = 5
 
 ModAction = namedtuple("ModAction", [
     "id", "timestamp", "modname", "platform", "place", "action", "object",
-    "details", "r_action"])
+    "details", "r_action", "raw"])
 
 
 def minimal_username(name):
@@ -94,8 +95,9 @@ def mod_action_from_atom(entry):
     action, object = split_action_atom(actobj)
     details = ""
     r_action = ""
+    raw = ""
     return ModAction(mid, timestamp, modname, platform, place, action, object,
-        details, r_action)
+        details, r_action, raw)
 
 
 def mod_actions_from_atom(str_):
@@ -158,7 +160,7 @@ def mod_action_from_json(obj):
 
     object = " ".join(filter(bool, [objtype, author, title, permalink]))
     return ModAction(mid, timestamp, modname, platform, place, action,
-        object, details, r_action)
+        object, details, r_action, obj)
 
 
 def mod_actions_from_json(str):
@@ -215,6 +217,7 @@ def format_mod_action(ma):
 
 
 DB_SCHEMA_VERSION = 4
+RAW_DB_SCHEMA_VERSION = 1
 
 
 def table_exists(cur, table):
@@ -223,10 +226,17 @@ def table_exists(cur, table):
     return bool(cur.fetchone())
 
 
-def get_meta_value(cur, key, converter):
-    cur.execute('SELECT "value" FROM redditmodlog_meta WHERE "key"=?', (key,))
+def get_db_value(cur, sql, params=(), converter=None):
+    cur.execute(sql, params)
     row = cur.fetchone()
-    return converter(row[0]) if (row and row[0]) else None
+    val = row[0] if (row and row[0]) else None
+    return converter(val) if (val and converter) else val
+
+
+def get_meta_value(cur, key, converter):
+    return get_db_value(cur,
+        'SELECT "value" FROM redditmodlog_meta WHERE "key"=?', (key,),
+        converter)
 
 
 def set_meta_value(cur, key, val):
@@ -248,6 +258,17 @@ def db_initialized(cur):
             raise Exception("unsupported schema version {},"
                             " expected {}".format(ver, DB_SCHEMA_VERSION))
     return modlog_table_exists
+
+def raw_db_initialized(cur):
+    table = "redditmodlog_raw"
+    exists = table_exists(cur, table)
+    if exists:
+        ver = get_db_value(cur, "PRAGMA user_version", (), int)
+        if ver != RAW_DB_SCHEMA_VERSION:
+            raise Exception("unsupported schema version for table {}: found {}"
+                            " but expected {}".format(table, ver,
+                                RAW_DB_SCHEMA_VERSION))
+    return exists
 
 
 def get_newest_mod_action_idts(cur):
@@ -305,6 +326,20 @@ def init_db(conn):
     cur.close()
 
 
+def init_raw_db(conn):
+    cur = conn.cursor()
+    cur.execute('CREATE TABLE redditmodlog_raw ('
+                '    "id"           TEXT,'
+                '    "timestamp"    INTEGER,'
+                '    "data"         TEXT,'
+                '    PRIMARY KEY ("id")'
+                ')')
+    cur.execute("PRAGMA user_version = " + str(RAW_DB_SCHEMA_VERSION))
+    conn.commit()
+    logger.info("initialized database redditmodlog_raw")
+    cur.close()
+
+
 def mod_action_exists(cur, mid):
     cur.execute('SELECT "id" FROM redditmodlog WHERE "id"=?', (mid,))
     return bool(cur.fetchone())
@@ -314,6 +349,12 @@ def insert_mod_action(cur, ma):
     cur.execute('INSERT INTO redditmodlog VALUES (?,?,?,?,?,?,?)',
         (ma.id, ma.timestamp, ma.modname, ma.place, ma.action, ma.object,
          ma.details))
+
+
+def insert_raw_mod_action(cur, ma):
+    raw = json.dumps(ma.raw, separators=(",", ":"), sort_keys=True)
+    cur.execute('INSERT OR IGNORE INTO redditmodlog_raw VALUES (?,?,?)',
+        (ma.id, ma.timestamp, raw))
 
 
 def fetch(url):
@@ -338,6 +379,16 @@ def replace_query_param(url, param, value):
     qsp[param] = value
     qs = urlencode(qsp, doseq=True)
     return urlunparse(urlp._replace(query=qs))
+
+
+def save_raw(mod_actions, db_file):
+    with closing(sqlite3.connect(db_file)) as conn:
+        cur = conn.cursor()
+        if not raw_db_initialized(cur):
+            init_raw_db(conn)
+        for ma in mod_actions:
+            insert_raw_mod_action(cur, ma)
+        conn.commit()
 
 
 def new_modlog_records():
@@ -371,6 +422,10 @@ def new_modlog_records():
         return [] # could not fetch anything, try again later
 
     mod_actions = list(converter(resp))
+
+    if mode == "json" and conf.enabled(CONFIG["json_save_raw"]):
+        save_raw(mod_actions, CONFIG["json_raw_dbfile"])
+
     mod_actions_filtered = list(filter_mod_actions(mod_actions))
 
     if first_run:
