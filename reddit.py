@@ -124,7 +124,7 @@ MOD_ACTIONS_OBJTYPES = {
 def mod_action_from_json(obj):
     # get required keys with obj[] to trigger KeyErrors
     mid = obj["id"]
-    timestamp = obj["created_utc"]
+    timestamp = int(obj["created_utc"])
     modname = obj["mod"]
     platform = "reddit"
     place = obj["subreddit"]
