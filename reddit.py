@@ -20,8 +20,8 @@ FETCH_RETRIES = 5
 
 
 ModAction = namedtuple("ModAction", [
-    "id", "modname", "timestamp", "platform", "place", "action", "raw_action",
-    "object", "details"])
+    "id", "timestamp", "modname", "platform", "place", "action", "object",
+    "details", "r_action"])
 
 
 def minimal_username(name):
@@ -83,17 +83,19 @@ def split_action_atom(ao):
 
 def mod_action_from_atom(entry):
     mid = extract_id_atom(entry["id"])
-    modname = minimal_username(entry["authors"][0]["name"])
     stime = entry["updated_parsed"] # feedparser promises to return UTC
     timestamp = int(mktime(stime))
+    modname = minimal_username(entry["authors"][0]["name"])
     platform = "reddit"
     place = entry.tags[0]["term"]
     actobj = entry["title_detail"]["value"]
     actobj = drop_prefix(actobj, place + ": ")
     actobj = drop_prefix(actobj, modname + " ")
     act, obj = split_action_atom(actobj)
-    return ModAction(mid, modname, timestamp, platform, place, act, "", obj,
-        "")
+    details = ""
+    r_action = ""
+    return ModAction(mid, timestamp, modname, platform, place, act, obj,
+        details, r_action)
 
 
 def mod_actions_from_atom(str_):
@@ -122,8 +124,8 @@ MOD_ACTIONS_OBJECTS = {
 def mod_action_from_json(obj):
     # get required keys with obj[] to trigger KeyErrors
     mid = obj["id"]
-    modname = obj["mod"]
     timestamp = obj["created_utc"]
+    modname = obj["mod"]
     platform = "reddit"
     place = obj["subreddit"]
     action = obj["action"]
@@ -155,8 +157,8 @@ def mod_action_from_json(obj):
                   else fdetails + fdesc)
 
     fobject = " ".join(filter(bool, [objtype, fauthor, ftitle, fpermalink]))
-    return ModAction(mid, modname, timestamp, platform, place, faction, action,
-        fobject, mdetails)
+    return ModAction(mid, timestamp, modname, platform, place, faction,
+        fobject, mdetails, action)
 
 
 def mod_actions_from_json(str_):
@@ -188,7 +190,7 @@ def mod_actions_from_json(str_):
 
 
 def filter_mod_actions(mas):
-    return filter(lambda ma: not ma.raw_action == "editflair", mas)
+    return filter(lambda ma: not ma.r_action == "editflair", mas)
 
 
 def newest_mod_action(mod_actions):
@@ -212,7 +214,7 @@ def format_mod_action(ma):
     return s
 
 
-DB_SCHEMA_VERSION = 3
+DB_SCHEMA_VERSION = 4
 
 
 def table_exists(cur, table):
@@ -281,8 +283,8 @@ def init_db(conn):
     cur = conn.cursor()
     cur.execute('CREATE TABLE redditmodlog ('
                 '    "id"           TEXT,'
-                '    "modname"      TEXT,'
                 '    "timestamp"    INTEGER,'
+                '    "modname"      TEXT,'
                 '    "place"        TEXT,'
                 '    "action"       TEXT,'
                 '    "object"       TEXT,'
@@ -310,7 +312,7 @@ def mod_action_exists(cursor, mid):
 
 def insert_mod_action(cursor, ma):
     cursor.execute('INSERT INTO redditmodlog VALUES (?,?,?,?,?,?,?)',
-        (ma.id, ma.modname, ma.timestamp, ma.place, ma.action, ma.object,
+        (ma.id, ma.timestamp, ma.modname, ma.place, ma.action, ma.object,
             ma.details))
 
 
