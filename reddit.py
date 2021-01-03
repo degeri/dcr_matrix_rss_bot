@@ -29,16 +29,17 @@ def minimal_username(name):
     return name.replace("/u/", "")
 
 
-def short_link(permalink):
+def short_md_link(permalink):
     parsed = urlparse(permalink)
     parts = parsed.path.split("/")
     if len(parts) == 7:
         postid = parts[4]
-        return "{}/comments/{}/".format(BASE_URL, postid)
+        return "[{}]({}/comments/{}/)".format(postid, BASE_URL, postid)
     elif len(parts) == 8:
         postid = parts[4]
         commentid = parts[6]
-        return "{}/comments/{}/_/{}/".format(BASE_URL, postid, commentid)
+        return "[{}:{}]({}/comments/{}/_/{}/)".format(postid, commentid,
+            BASE_URL, postid, commentid)
     else:
         logger.warning("unexpected permalink: " + permalink)
         return permalink
@@ -143,7 +144,7 @@ def mod_action_from_json(obj):
              or objtype == "flair for post")
     author = "by " + r_author if (r_author and addby) else r_author
     r_permalink = obj.get("target_permalink")
-    permalink = short_link(r_permalink) + " " if r_permalink else ""
+    md_link = "(" + short_md_link(r_permalink) + ")" if r_permalink else ""
     r_details = obj.get("details")
     fdetails = r_details if r_details else ""
     r_desc = obj.get("description")
@@ -158,7 +159,7 @@ def mod_action_from_json(obj):
         details = (fdetails + ": " + fdesc if (fdetails and fdesc)
                    else fdetails + fdesc)
 
-    object = " ".join(filter(bool, [objtype, author, title, permalink]))
+    object = " ".join(filter(bool, [objtype, author, title, md_link]))
     return ModAction(mid, timestamp, modname, platform, place, action,
         object, details, r_action, obj)
 
