@@ -21,7 +21,7 @@ FETCH_RETRIES = 5
 
 ModAction = namedtuple("ModAction", [
     "id", "modname", "timestamp", "platform", "place", "action", "raw_action",
-    "object", "reason"])
+    "object", "details"])
 
 
 def minimal_username(name):
@@ -146,17 +146,17 @@ def mod_action_from_json(obj):
     fdesc = desc if desc else ""
 
     if action == "distinguish":
-        reason = obj.get("target_body")
+        mdetails = obj.get("target_body")
     elif action == "editrule" or action == "createrule":
         ftitle = '"' + fdetails + '"'
-        reason = fdesc
+        mdetails = fdesc
     else:
-        reason = (fdetails + ": " + fdesc if (fdetails and fdesc)
+        mdetails = (fdetails + ": " + fdesc if (fdetails and fdesc)
                   else fdetails + fdesc)
 
     fobject = " ".join(filter(bool, [objtype, fauthor, ftitle, fpermalink]))
     return ModAction(mid, modname, timestamp, platform, place, faction, action,
-        fobject, reason)
+        fobject, mdetails)
 
 
 def mod_actions_from_json(str_):
@@ -201,18 +201,18 @@ def format_timestamp(ts):
 
 def format_mod_action(ma):
     s = ("{modname} {timestamp}; {platform} {place};"
-         " {action} {object}{reason}").format(
+         " {action} {object}{details}").format(
             modname=ma.modname,
             timestamp=format_timestamp(ma.timestamp),
             platform=ma.platform,
             place=ma.place,
             action=ma.action,
             object=ma.object,
-            reason="; " + ma.reason if ma.reason else "")
+            details="; " + ma.details if ma.details else "")
     return s
 
 
-DB_SCHEMA_VERSION = 2
+DB_SCHEMA_VERSION = 3
 
 
 def table_exists(cur, table):
@@ -286,7 +286,7 @@ def init_db(conn):
                 '    "place"        TEXT,'
                 '    "action"       TEXT,'
                 '    "object"       TEXT,'
-                '    "reason"       TEXT,'
+                '    "details"      TEXT,'
                 '    PRIMARY KEY ("id")'
                 ')')
     cur.execute('CREATE TABLE redditmodlog_meta('
@@ -311,7 +311,7 @@ def mod_action_exists(cursor, mid):
 def insert_mod_action(cursor, ma):
     cursor.execute('INSERT INTO redditmodlog VALUES (?,?,?,?,?,?,?)',
         (ma.id, ma.modname, ma.timestamp, ma.place, ma.action, ma.object,
-            ma.reason))
+            ma.details))
 
 
 def fetch(url):
