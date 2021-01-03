@@ -43,7 +43,7 @@ def short_link(permalink):
         return permalink
 
 
-MOD_ACTION_FIXES = {
+MOD_ACTION_FIXES_ATOM = {
     "approved"      : "approve",
     "banned"        : "ban",
     "distinguished" : "distinguish",
@@ -71,14 +71,14 @@ def drop_prefix(s, p):
 
 def split_action_atom(ao):
     action = ao
-    object_ = ""
-    for wrong, fixed in MOD_ACTION_FIXES.items():
+    object = ""
+    for wrong, fixed in MOD_ACTION_FIXES_ATOM.items():
         if ao.startswith(wrong + " "):
             action = fixed
-            object_ = ao.replace(wrong + " ", "", 1)
+            object = ao.replace(wrong + " ", "", 1)
             break
 
-    return action, object_
+    return action, object
 
 
 def mod_action_from_atom(entry):
@@ -91,10 +91,10 @@ def mod_action_from_atom(entry):
     actobj = entry["title_detail"]["value"]
     actobj = drop_prefix(actobj, place + ": ")
     actobj = drop_prefix(actobj, modname + " ")
-    act, obj = split_action_atom(actobj)
+    action, object = split_action_atom(actobj)
     details = ""
     r_action = ""
-    return ModAction(mid, timestamp, modname, platform, place, act, obj,
+    return ModAction(mid, timestamp, modname, platform, place, action, object,
         details, r_action)
 
 
@@ -103,7 +103,7 @@ def mod_actions_from_atom(str_):
     return map(mod_action_from_atom, feed.entries)
 
 
-MOD_ACTIONS_OBJECTS = {
+MOD_ACTIONS_OBJTYPES = {
     "banuser"       : ("ban", "user"),
     "unbanuser"     : ("unban", "user"),
     "spamlink"      : ("remove", "post"),
@@ -128,42 +128,42 @@ def mod_action_from_json(obj):
     modname = obj["mod"]
     platform = "reddit"
     place = obj["subreddit"]
-    action = obj["action"]
-    faction, objtype = MOD_ACTIONS_OBJECTS.get(action, (action, ""))
+    r_action = obj["action"]
+    action, objtype = MOD_ACTIONS_OBJTYPES.get(r_action, (r_action, ""))
 
     # get optional fields with obj.get(), mind that it can return None
     # if the key exists but has an explicit `None` value
-    title = obj.get("target_title")
-    ftitle = '"' + title + '"' if title else ""
-    author = obj.get("target_author")
+    r_title = obj.get("target_title")
+    title = '"' + r_title + '"' if r_title else ""
+    r_author = obj.get("target_author")
     addby = (objtype == "post"
              or objtype == "comment"
              or objtype == "flair for post")
-    fauthor = "by " + author if (author and addby) else author
-    permalink = obj.get("target_permalink")
-    fpermalink = short_link(permalink) + " " if permalink else ""
-    details = obj.get("details")
-    fdetails = details if details else ""
-    desc = obj.get("description")
-    fdesc = desc if desc else ""
+    author = "by " + r_author if (r_author and addby) else r_author
+    r_permalink = obj.get("target_permalink")
+    permalink = short_link(r_permalink) + " " if r_permalink else ""
+    r_details = obj.get("details")
+    fdetails = r_details if r_details else ""
+    r_desc = obj.get("description")
+    fdesc = r_desc if r_desc else ""
 
-    if action == "distinguish":
-        mdetails = obj.get("target_body")
-    elif action == "editrule" or action == "createrule":
-        ftitle = '"' + fdetails + '"'
-        mdetails = fdesc
+    if r_action == "distinguish":
+        details = obj.get("target_body")
+    elif r_action == "editrule" or r_action == "createrule":
+        title = '"' + fdetails + '"'
+        details = fdesc
     else:
-        mdetails = (fdetails + ": " + fdesc if (fdetails and fdesc)
-                  else fdetails + fdesc)
+        details = (fdetails + ": " + fdesc if (fdetails and fdesc)
+                   else fdetails + fdesc)
 
-    fobject = " ".join(filter(bool, [objtype, fauthor, ftitle, fpermalink]))
-    return ModAction(mid, timestamp, modname, platform, place, faction,
-        fobject, mdetails, action)
+    object = " ".join(filter(bool, [objtype, author, title, permalink]))
+    return ModAction(mid, timestamp, modname, platform, place, action,
+        object, details, r_action)
 
 
-def mod_actions_from_json(str_):
+def mod_actions_from_json(str):
     try:
-        feed = json.loads(str_)
+        feed = json.loads(str)
     except ValueError as e:
         logger.error("malformed JSON")
         return []
@@ -305,15 +305,15 @@ def init_db(conn):
     cur.close()
 
 
-def mod_action_exists(cursor, mid):
-    cursor.execute('SELECT "id" FROM redditmodlog WHERE "id"=?', (mid,))
-    return bool(cursor.fetchone())
+def mod_action_exists(cur, mid):
+    cur.execute('SELECT "id" FROM redditmodlog WHERE "id"=?', (mid,))
+    return bool(cur.fetchone())
 
 
-def insert_mod_action(cursor, ma):
-    cursor.execute('INSERT INTO redditmodlog VALUES (?,?,?,?,?,?,?)',
+def insert_mod_action(cur, ma):
+    cur.execute('INSERT INTO redditmodlog VALUES (?,?,?,?,?,?,?)',
         (ma.id, ma.timestamp, ma.modname, ma.place, ma.action, ma.object,
-            ma.details))
+         ma.details))
 
 
 def fetch(url):
