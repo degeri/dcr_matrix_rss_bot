@@ -217,7 +217,7 @@ def format_mod_action(ma):
     return s
 
 
-DB_SCHEMA_VERSION = 4
+DB_SCHEMA_VERSION = 5
 RAW_DB_SCHEMA_VERSION = 1
 
 
@@ -249,6 +249,12 @@ def set_meta_value(cur, key, val):
                 (val, key))
 
 
+def assert_schema_version(cur, required_ver):
+    ver = get_db_value(cur, "PRAGMA user_version", (), int_or_none)
+    if ver != required_ver:
+        raise Exception("unsupported schema version: found {} but"
+                        " expected {}".format(ver, required_ver))
+
 def db_initialized(cur):
     modlog_table = "redditmodlog"
     modlog_table_exists = table_exists(cur, modlog_table)
@@ -258,21 +264,16 @@ def db_initialized(cur):
         raise Exception("bad db state: tables {} and {} must either both exist"
                         " or not exist".format(modlog_table, meta_table))
     if meta_table_exists:
-        ver = get_meta_value(cur, "schema_version", int_or_none)
-        if ver != DB_SCHEMA_VERSION:
-            raise Exception("unsupported schema version {},"
-                            " expected {}".format(ver, DB_SCHEMA_VERSION))
+        # user_version is 0 for empty db files so check it only if table exists
+        assert_schema_version(cur, DB_SCHEMA_VERSION)
     return modlog_table_exists
 
+
 def raw_db_initialized(cur):
-    table = "redditmodlog_raw"
-    exists = table_exists(cur, table)
+    exists = table_exists(cur, "redditmodlog_raw")
     if exists:
-        ver = get_db_value(cur, "PRAGMA user_version", (), int_or_none)
-        if ver != RAW_DB_SCHEMA_VERSION:
-            raise Exception("unsupported schema version for table {}: found {}"
-                            " but expected {}".format(table, ver,
-                                RAW_DB_SCHEMA_VERSION))
+        # user_version is 0 for empty db files so check it only if table exists
+        assert_schema_version(cur, RAW_DB_SCHEMA_VERSION)
     return exists
 
 
@@ -307,6 +308,7 @@ def update_newest_mod_action(conn, mod_actions):
 
 def init_db(conn):
     cur = conn.cursor()
+    cur.execute("PRAGMA user_version = " + str(DB_SCHEMA_VERSION))
     cur.execute('CREATE TABLE redditmodlog ('
                 '    "id"           TEXT,'
                 '    "timestamp"    INTEGER,'
@@ -322,7 +324,6 @@ def init_db(conn):
                 '    "value"        TEXT'
                 ')')
     cur.executemany('INSERT INTO redditmodlog_meta VALUES (?,?)', [
-        ("schema_version", str(DB_SCHEMA_VERSION)),
         ("newest_modaction_id", ""),
         ("newest_modaction_timestamp", ""),
     ])
@@ -333,13 +334,13 @@ def init_db(conn):
 
 def init_raw_db(conn):
     cur = conn.cursor()
+    cur.execute("PRAGMA user_version = " + str(RAW_DB_SCHEMA_VERSION))
     cur.execute('CREATE TABLE redditmodlog_raw ('
                 '    "id"           TEXT,'
                 '    "timestamp"    INTEGER,'
                 '    "data"         TEXT,'
                 '    PRIMARY KEY ("id")'
                 ')')
-    cur.execute("PRAGMA user_version = " + str(RAW_DB_SCHEMA_VERSION))
     conn.commit()
     logger.info("initialized database redditmodlog_raw")
     cur.close()
