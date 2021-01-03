@@ -230,14 +230,18 @@ def table_exists(cur, table):
 def get_db_value(cur, sql, params=(), converter=None):
     cur.execute(sql, params)
     row = cur.fetchone()
-    val = row[0] if (row and row[0]) else None
-    return converter(val) if (val and converter) else val
+    val = row[0] if row else None
+    return converter(val) if (converter and val is not None) else val
 
 
 def get_meta_value(cur, key, converter):
     return get_db_value(cur,
         'SELECT "value" FROM redditmodlog_meta WHERE "key"=?', (key,),
         converter)
+
+
+def int_or_none(x):
+    return int(x) if x != "" else None
 
 
 def set_meta_value(cur, key, val):
@@ -254,7 +258,7 @@ def db_initialized(cur):
         raise Exception("bad db state: tables {} and {} must either both exist"
                         " or not exist".format(modlog_table, meta_table))
     if meta_table_exists:
-        ver = get_meta_value(cur, "schema_version", int)
+        ver = get_meta_value(cur, "schema_version", int_or_none)
         if ver != DB_SCHEMA_VERSION:
             raise Exception("unsupported schema version {},"
                             " expected {}".format(ver, DB_SCHEMA_VERSION))
@@ -264,7 +268,7 @@ def raw_db_initialized(cur):
     table = "redditmodlog_raw"
     exists = table_exists(cur, table)
     if exists:
-        ver = get_db_value(cur, "PRAGMA user_version", (), int)
+        ver = get_db_value(cur, "PRAGMA user_version", (), int_or_none)
         if ver != RAW_DB_SCHEMA_VERSION:
             raise Exception("unsupported schema version for table {}: found {}"
                             " but expected {}".format(table, ver,
@@ -274,7 +278,7 @@ def raw_db_initialized(cur):
 
 def get_newest_mod_action_idts(cur):
     newest_id = get_meta_value(cur, "newest_modaction_id", str)
-    newest_ts = get_meta_value(cur, "newest_modaction_timestamp", int)
+    newest_ts = get_meta_value(cur, "newest_modaction_timestamp", int_or_none)
     return newest_id, newest_ts
 
 
