@@ -8,7 +8,8 @@ import reddit
 wait_time = int(config["programconfig"]["checktimemins"]) * 60
 
 while True:
-    records = reddit.new_modlog_records()
-    for r in records:
-        matrix.send_message(r)
+    mod_actions = reddit.new_mod_actions()
+    for ma in mod_actions:
+        md = reddit.format_mod_action_md(ma)
+        matrix.send_message(md)
     time.sleep(wait_time)

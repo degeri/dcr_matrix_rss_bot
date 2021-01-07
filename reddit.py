@@ -205,7 +205,7 @@ def format_timestamp(ts):
     return datetime.utcfromtimestamp(ts).isoformat(" ") + " UTC"
 
 
-def format_mod_action(ma):
+def format_mod_action_md(ma):
     s = ("{modname} {timestamp}; {platform} {place};"
          " {action} {object}{details}").format(
             modname=ma.modname,
@@ -398,7 +398,7 @@ def save_raw(mod_actions, db_file):
         conn.commit()
 
 
-def new_modlog_records():
+def new_mod_actions():
     db_file = CONFIG["dbfile"]
 
     mode = CONFIG["mode"]
@@ -442,7 +442,7 @@ def new_modlog_records():
         db_conn.close()
         return [] # nothing "new" on the first run
 
-    records = []
+    new_mod_actions = []
 
     for ma in mod_actions_filtered:
         exists = mod_action_exists(db_cur, ma.id)
@@ -457,7 +457,7 @@ def new_modlog_records():
                                " saving: " + str(ma))
             insert_mod_action(db_cur, ma)
             db_conn.commit()
-            records.append(format_mod_action(ma))
+            new_mod_actions.append(ma)
         else: # exists
             # ideally report a diff with db version
             if older:
@@ -482,4 +482,4 @@ def new_modlog_records():
     update_newest_mod_action(db_conn, mod_actions) # commits
 
     db_conn.close()
-    return records
+    return new_mod_actions
