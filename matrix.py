@@ -14,11 +14,18 @@ CONFIG = conf.config["matrixconfig"]
 # SPEC: https://matrix.org/docs/spec/client_server/r0.6.0
 
 
-def message(body):
-    return json_compact({"msgtype": "m.text", "body": body})
+def message(body, formatted_body=None):
+    if formatted_body:
+        msg = {"msgtype": "m.text",
+               "body": body,
+               "format": "org.matrix.custom.html",
+               "formatted_body": formatted_body}
+    else:
+        msg = {"msgtype": "m.text", "body": body}
+    return json_compact(msg)
 
 
-def send_message(msg):
+def send_message(msg, formatted_msg=None):
     token = CONFIG["accesstoken"]
     roomid = CONFIG["roomid"]
     server_url = CONFIG["server_url"]
@@ -26,7 +33,7 @@ def send_message(msg):
     url = "{}_matrix/client/r0/rooms/{}/send/m.room.message/{}".format(
             server_url, roomid, txid)
     headers = {"Authorization": "Bearer " + token}
-    data = message(msg)
+    data = message(msg, formatted_msg)
     logger.info("sending: " + msg)
     r = requests.put(url, data=data, headers=headers)
     return r

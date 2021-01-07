@@ -11,5 +11,6 @@ while True:
     mod_actions = reddit.new_mod_actions()
     for ma in mod_actions:
         md = reddit.format_mod_action_md(ma)
-        matrix.send_message(md)
+        html = reddit.format_mod_action_html(ma)
+        matrix.send_message(md, html)
     time.sleep(wait_time)

@@ -23,27 +23,29 @@ FETCH_RETRIES = 5
 
 ModAction = namedtuple("ModAction", [
     "id", "timestamp", "modname", "platform", "place", "action", "object",
-    "details", "r_action", "raw"])
+    "details", "r_action", "r_link", "raw"])
 
 
 def minimal_username(name):
     return name.replace("/u/", "")
 
 
-def short_md_link(permalink):
+def short_link(permalink):
     parsed = urlparse(permalink)
     parts = parsed.path.split("/")
     if len(parts) == 7:
         postid = parts[4]
-        return "[{}]({}/comments/{}/)".format(postid, BASE_URL, postid)
+        text = postid
+        link = "{}/comments/{}/".format(BASE_URL, postid)
     elif len(parts) == 8:
         postid = parts[4]
         commentid = parts[6]
-        return "[{}:{}]({}/comments/{}/_/{}/)".format(postid, commentid,
-            BASE_URL, postid, commentid)
+        text = postid + ":" + commentid
+        link = "{}/comments/{}/_/{}/".format(BASE_URL, postid, commentid)
     else:
         logger.warning("unexpected permalink: " + permalink)
-        return permalink
+        text, link = permalink, permalink
+    return text, link
 
 
 MOD_ACTION_FIXES_ATOM = {
@@ -97,9 +99,10 @@ def mod_action_from_atom(entry):
     action, object = split_action_atom(actobj)
     details = ""
     r_action = ""
+    r_link = ""
     raw = ""
     return ModAction(mid, timestamp, modname, platform, place, action, object,
-        details, r_action, raw)
+        details, r_action, r_link, raw)
 
 
 def mod_actions_from_atom(str_):
@@ -144,8 +147,7 @@ def mod_action_from_json(obj):
              or objtype == "comment"
              or objtype == "flair for post")
     author = "by " + r_author if (r_author and addby) else r_author
-    r_permalink = obj.get("target_permalink")
-    md_link = "(" + short_md_link(r_permalink) + ")" if r_permalink else ""
+    r_link = obj.get("target_permalink")
     r_details = obj.get("details")
     fdetails = r_details if r_details else ""
     r_desc = obj.get("description")
@@ -160,9 +162,9 @@ def mod_action_from_json(obj):
         details = (fdetails + ": " + fdesc if (fdetails and fdesc)
                    else fdetails + fdesc)
 
-    object = " ".join(filter(bool, [objtype, author, title, md_link]))
+    object = " ".join(filter(bool, [objtype, author, title]))
     return ModAction(mid, timestamp, modname, platform, place, action,
-        object, details, r_action, obj)
+        object, details, r_action, r_link, obj)
 
 
 def mod_actions_from_json(str):
@@ -206,14 +208,37 @@ def format_timestamp(ts):
 
 
 def format_mod_action_md(ma):
+    objlink = ""
+    if ma.r_link:
+        text, link = short_link(ma.r_link)
+        objlink = " ([{}]({}))".format(text, link)
     s = ("{modname} {timestamp}; {platform} {place};"
-         " {action} {object}{details}").format(
+         " {action} {object}{objlink}{details}").format(
             modname=ma.modname,
             timestamp=format_timestamp(ma.timestamp),
             platform=ma.platform,
             place=ma.place,
             action=ma.action,
             object=ma.object,
+            objlink=objlink,
+            details="; " + ma.details if ma.details else "")
+    return s
+
+
+def format_mod_action_html(ma):
+    objlink = ""
+    if ma.r_link:
+        text, link = short_link(ma.r_link)
+        objlink = ' (<a href="{}">{}</a>)'.format(link, text)
+    s = ("{modname} {timestamp}; {platform} {place};"
+         " {action} {object}{objlink}{details}").format(
+            modname=ma.modname,
+            timestamp=format_timestamp(ma.timestamp),
+            platform=ma.platform,
+            place=ma.place,
+            action=ma.action,
+            object=ma.object,
+            objlink=objlink,
             details="; " + ma.details if ma.details else "")
     return s
 
