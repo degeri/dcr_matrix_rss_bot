@@ -12,6 +12,7 @@ import requests
 
 import conf
 from log import logger
+from utils import json_compact
 
 
 CONFIG = conf.config["redditmodlog"]
@@ -358,7 +359,7 @@ def insert_mod_action(cur, ma):
 
 
 def insert_raw_mod_action(cur, ma):
-    raw = json.dumps(ma.raw, separators=(",", ":"), sort_keys=True)
+    raw = json_compact(ma.raw)
     cur.execute('INSERT OR IGNORE INTO redditmodlog_raw VALUES (?,?,?)',
         (ma.id, ma.timestamp, raw))
 
