@@ -5,6 +5,7 @@ import requests
 
 import conf
 from log import logger
+from utils import json_compact
 
 
 CONFIG = conf.config["matrixconfig"]
@@ -14,7 +15,7 @@ CONFIG = conf.config["matrixconfig"]
 
 
 def message(body):
-    return json.dumps({"msgtype": "m.text", "body": body})
+    return json_compact({"msgtype": "m.text", "body": body})
 
 
 def send_message(msg):
