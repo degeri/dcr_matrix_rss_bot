@@ -447,7 +447,7 @@ def new_mod_actions():
         db_conn.close()
         return [] # could not fetch anything, try again later
 
-    mod_actions = list(converter(resp))
+    mod_actions = sorted(converter(resp), key=lambda ma: ma.timestamp)
 
     if mode == "json" and conf.enabled(CONFIG["json_save_raw"]):
         save_raw(mod_actions, CONFIG["json_raw_dbfile"])
