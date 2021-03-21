@@ -334,7 +334,6 @@ def update_newest_mod_action(conn, mod_actions):
 
 def init_db(conn):
     cur = conn.cursor()
-    cur.execute("PRAGMA user_version = " + str(DB_SCHEMA_VERSION))
     cur.execute('CREATE TABLE redditmodlog ('
                 '    "id"           TEXT,'
                 '    "timestamp"    INTEGER,'
@@ -353,25 +352,26 @@ def init_db(conn):
         ("newest_modaction_id", ""),
         ("newest_modaction_timestamp", ""),
     ])
+    cur.execute("PRAGMA user_version = " + str(DB_SCHEMA_VERSION))
     conn.commit()
+    cur.close()
     logger.info("initialized database redditmodlog with schema version "
                 + str(DB_SCHEMA_VERSION))
-    cur.close()
 
 
 def init_raw_db(conn):
     cur = conn.cursor()
-    cur.execute("PRAGMA user_version = " + str(RAW_DB_SCHEMA_VERSION))
     cur.execute('CREATE TABLE redditmodlog_raw ('
                 '    "id"           TEXT,'
                 '    "timestamp"    INTEGER,'
                 '    "data"         TEXT,'
                 '    PRIMARY KEY ("id")'
                 ')')
+    cur.execute("PRAGMA user_version = " + str(RAW_DB_SCHEMA_VERSION))
     conn.commit()
+    cur.close()
     logger.info("initialized database redditmodlog_raw with schema version "
                 + str(RAW_DB_SCHEMA_VERSION))
-    cur.close()
 
 
 def mod_action_exists(cur, mid):
