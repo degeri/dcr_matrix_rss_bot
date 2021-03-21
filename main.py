@@ -1,12 +1,9 @@
 import time
 
-from conf import config
+import conf
 from log import logger
 import matrix
 import reddit
-
-
-wait_time = int(config["programconfig"]["checktimemins"]) * 60
 
 
 def process():
@@ -18,6 +15,14 @@ def process():
 
 
 def main_loop():
+    config = conf.config
+    wait_time = int(config["programconfig"]["checktimemins"]) * 60
+    mode = config["redditmodlog"]["mode"]
+    logger.info("starting in '{}' mode, checking every {} seconds".format(
+                    mode, wait_time))
+    if mode == "json" and conf.enabled(config["redditmodlog"]["json_save_raw"]):
+        logger.info("saving of raw JSON is enabled")
+
     while True:
         try:
             process()
