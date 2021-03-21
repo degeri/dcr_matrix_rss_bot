@@ -17,13 +17,20 @@ def process():
         matrix.send_message(md, html)
 
 
-def main():
+def main_loop():
     while True:
         try:
             process()
         except Exception as e:
             logger.exception(e)
         time.sleep(wait_time)
+
+
+def main():
+    try:
+        main_loop()
+    except KeyboardInterrupt:
+        logger.info("shutting down")
 
 
 if __name__ == "__main__":
