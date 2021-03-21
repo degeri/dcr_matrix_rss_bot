@@ -5,10 +5,13 @@ import requests
 
 import conf
 from log import logger
-from utils import json_compact
+from utils import json_compact, request_retrying
 
 
 CONFIG = conf.config["matrixconfig"]
+POST_SEND_SECONDS = 2
+SEND_RETRY_SECONDS = 5
+SEND_RETRIES = 5
 
 
 # SPEC: https://matrix.org/docs/spec/client_server/r0.6.0
@@ -35,5 +38,10 @@ def send_message(msg, formatted_msg=None):
     headers = {"Authorization": "Bearer " + token}
     data = message(msg, formatted_msg)
     logger.info("sending: " + msg)
-    r = requests.put(url, data=data, headers=headers)
+    reqfn = lambda: requests.put(url, data=data, headers=headers)
+    r = request_retrying(reqfn, SEND_RETRIES, SEND_RETRY_SECONDS)
+    if not r:
+        logger.warning("message not sent: " + msg)
+    # quick sleep hack to not trigger 429 Too Many Requests in the first place
+    time.sleep(POST_SEND_SECONDS)
     return r
