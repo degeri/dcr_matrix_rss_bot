@@ -354,7 +354,8 @@ def init_db(conn):
         ("newest_modaction_timestamp", ""),
     ])
     conn.commit()
-    logger.info("initialized database redditmodlog")
+    logger.info("initialized database redditmodlog with schema version "
+                + str(DB_SCHEMA_VERSION))
     cur.close()
 
 
@@ -368,7 +369,8 @@ def init_raw_db(conn):
                 '    PRIMARY KEY ("id")'
                 ')')
     conn.commit()
-    logger.info("initialized database redditmodlog_raw")
+    logger.info("initialized database redditmodlog_raw with schema version "
+                + str(RAW_DB_SCHEMA_VERSION))
     cur.close()
 
 
@@ -465,6 +467,8 @@ def new_mod_actions():
             insert_mod_action(db_cur, ma)
         update_newest_mod_action(db_conn, mod_actions) # commits
         db_conn.close()
+        logger.info("saved {} mod actions during first run".format(
+                        len(mod_actions)))
         return [] # nothing "new" on the first run
 
     new_mod_actions = []
