@@ -153,9 +153,7 @@ def mod_action_from_json(obj):
     r_desc = obj.get("description")
     fdesc = r_desc if r_desc else ""
 
-    if r_action == "distinguish":
-        details = obj.get("target_body")
-    elif r_action == "editrule" or r_action == "createrule":
+    if r_action == "editrule" or r_action == "createrule":
         title = '"' + fdetails + '"'
         details = fdesc
     else:
