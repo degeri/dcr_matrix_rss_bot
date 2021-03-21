@@ -207,11 +207,7 @@ def format_timestamp(ts):
     return datetime.utcfromtimestamp(ts).isoformat(" ") + " UTC"
 
 
-def format_mod_action_md(ma):
-    objlink = ""
-    if ma.r_link:
-        text, link = short_link(ma.r_link)
-        objlink = " ([{}]({}))".format(text, link)
+def format_mod_action(ma, objlink=""):
     s = ("{modname} {timestamp}; {platform} {place};"
          " {action} {object}{objlink}{details}").format(
             modname=ma.modname,
@@ -223,6 +219,14 @@ def format_mod_action_md(ma):
             objlink=objlink,
             details="; " + ma.details if ma.details else "")
     return s
+
+
+def format_mod_action_md(ma):
+    objlink = ""
+    if ma.r_link:
+        text, link = short_link(ma.r_link)
+        objlink = " ([{}]({}))".format(text, link)
+    return format_mod_action(ma, objlink)
 
 
 def format_mod_action_html(ma):
@@ -230,17 +234,7 @@ def format_mod_action_html(ma):
     if ma.r_link:
         text, link = short_link(ma.r_link)
         objlink = ' (<a href="{}">{}</a>)'.format(link, text)
-    s = ("{modname} {timestamp}; {platform} {place};"
-         " {action} {object}{objlink}{details}").format(
-            modname=ma.modname,
-            timestamp=format_timestamp(ma.timestamp),
-            platform=ma.platform,
-            place=ma.place,
-            action=ma.action,
-            object=ma.object,
-            objlink=objlink,
-            details="; " + ma.details if ma.details else "")
-    return s
+    return format_mod_action(ma, objlink)
 
 
 DB_SCHEMA_VERSION = 5
