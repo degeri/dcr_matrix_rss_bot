@@ -1,6 +1,7 @@
 import time
 
 from conf import config
+from log import logger
 import matrix
 import reddit
 
@@ -18,7 +19,10 @@ def process():
 
 def main():
     while True:
-        process()
+        try:
+            process()
+        except Exception as e:
+            logger.exception(e)
         time.sleep(wait_time)
 
 
