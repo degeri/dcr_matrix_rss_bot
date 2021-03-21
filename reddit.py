@@ -12,7 +12,7 @@ import requests
 
 import conf
 from log import logger
-from utils import json_compact
+from utils import json_compact, request_retrying
 
 
 CONFIG = conf.config["redditmodlog"]
@@ -384,19 +384,9 @@ def insert_raw_mod_action(cur, ma):
 
 
 def fetch(url):
-    retries = 0
-    while retries <= FETCH_RETRIES:
-        resp = requests.get(url)
-        if resp.status_code == 200:
-            return resp.text
-        else:
-            logger.warning("response status {}, retrying in {} s".format(
-                str(resp.status_code), FETCH_RETRY_SECONDS))
-            retries += 1
-            time.sleep(FETCH_RETRY_SECONDS)
-    logger.warning("failed to fetch with {} retries, giving up this"
-                   " request".format(FETCH_RETRIES))
-    return None
+    reqfn = lambda: requests.get(url)
+    resp = request_retrying(reqfn, FETCH_RETRIES, FETCH_RETRY_SECONDS)
+    return resp.text if resp else None
 
 
 def replace_query_param(url, param, value):
