@@ -384,8 +384,7 @@ def insert_raw_mod_action(cur, ma):
 
 
 def fetch(url):
-    reqfn = lambda: requests.get(url)
-    resp = request_retrying(reqfn, FETCH_RETRIES, FETCH_RETRY_SECONDS)
+    resp = request_retrying(requests.get, url, FETCH_RETRIES, FETCH_RETRY_SECONDS)
     return resp.text if resp else None
 
 
