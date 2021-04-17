@@ -17,9 +17,11 @@ def request_retrying(fn, url, retries=0, wait_sec=1):
         if resp.status_code == 200:
             return resp
         else:
-            logger.warning("{}: response status {}, retrying in {} s".format(
-                host, str(resp.status_code), wait_sec))
             retry += 1
+            retrying = (", retrying in {} s".format(wait_sec)
+                        if retry <= retries else "")
+            logger.warning("{}: response status {}{}".format(
+                host, str(resp.status_code), retrying))
             time.sleep(wait_sec)
     logger.warning("{}: failed to fetch with {} retries, giving up this"
                    " request".format(host, retries))
