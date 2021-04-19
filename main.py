@@ -20,6 +20,9 @@ def main_loop():
     mode = config["redditmodlog"]["mode"]
     logger.info("starting in '{}' mode, checking every {} seconds".format(
                     mode, wait_time))
+    custom_ua = config["programconfig"]["user_agent"]
+    if custom_ua:
+        logger.info("using User-Agent '{}'".format(custom_ua))
     if mode == "json" and conf.enabled(config["redditmodlog"]["json_save_raw"]):
         logger.info("saving of raw JSON is enabled")
 

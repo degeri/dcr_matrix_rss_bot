@@ -1,5 +1,6 @@
 [programconfig]
 checktimemins=1
+user_agent=modlogbot
 
 [matrixconfig]
 accesstoken=xxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx

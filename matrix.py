@@ -8,6 +8,7 @@ from log import logger
 from utils import json_compact, request_retrying
 
 
+PROGRAM_CONFIG = conf.config["programconfig"]
 CONFIG = conf.config["matrixconfig"]
 POST_SEND_SECONDS = 2
 SEND_RETRY_SECONDS = 5
@@ -36,6 +37,9 @@ def send_message(msg, formatted_msg=None):
     send_url = "{}_matrix/client/r0/rooms/{}/send/m.room.message/{}".format(
             server_url, roomid, txid)
     headers = {"Authorization": "Bearer " + token}
+    custom_ua = PROGRAM_CONFIG["user_agent"]
+    if custom_ua:
+        headers["User-Agent"] = custom_ua
     data = message(msg, formatted_msg)
     logger.info("sending: " + msg)
     reqfn = lambda url: requests.put(url, data=data, headers=headers)

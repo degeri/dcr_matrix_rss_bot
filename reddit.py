@@ -15,6 +15,7 @@ from log import logger
 from utils import json_compact, request_retrying
 
 
+PROGRAM_CONFIG = conf.config["programconfig"]
 CONFIG = conf.config["redditmodlog"]
 BASE_URL = "https://www.reddit.com"
 FETCH_RETRY_SECONDS = 8
@@ -383,8 +384,15 @@ def insert_raw_mod_action(cur, ma):
         (ma.id, ma.timestamp, raw))
 
 
+def fetch_resp(url):
+    custom_ua = PROGRAM_CONFIG["user_agent"]
+    headers = {"User-Agent": custom_ua} if custom_ua else {}
+    reqfn = lambda url: requests.get(url, headers=headers)
+    return request_retrying(reqfn, url, FETCH_RETRIES, FETCH_RETRY_SECONDS)
+
+
 def fetch(url):
-    resp = request_retrying(requests.get, url, FETCH_RETRIES, FETCH_RETRY_SECONDS)
+    resp = fetch_resp(url)
     return resp.text if resp else None
 
 
