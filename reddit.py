@@ -203,14 +203,15 @@ def newest_mod_action(mod_actions):
 
 
 def format_timestamp(ts):
-    return datetime.utcfromtimestamp(ts).isoformat(" ") + " UTC"
+    return datetime.utcfromtimestamp(ts).isoformat(" ")
 
 
+# modlog v0.12
 def format_mod_action(ma, objlink=""):
-    s = ("{modname} {timestamp}; {platform} {place};"
+    s = ("{timestamp}; {modname}; {platform} {place};"
          " {action} {object}{objlink}{details}").format(
-            modname=ma.modname,
             timestamp=format_timestamp(ma.timestamp),
+            modname=ma.modname,
             platform=ma.platform,
             place=ma.place,
             action=ma.action,
